@@ -475,9 +475,16 @@ function buildCardFull(rec) {
 
 function buildCardMini(rec) {
   const card = document.createElement('div');
-  card.className = 'card-mini';
+  const urg = urgencyFor(rec.date);
+  card.className = `card-mini urg-${urg}`;
   card.dataset.id = rec.id;
   card.draggable = true;
+
+  const bar = document.createElement('div');
+  bar.className = 'mini-bar';
+
+  const body = document.createElement('div');
+  body.className = 'mini-body';
 
   const name = document.createElement('div');
   name.className = 'mini-name';
@@ -487,11 +494,11 @@ function buildCardMini(rec) {
   div.className = 'mini-divider';
 
   const date = document.createElement('div');
-  date.className = 'mini-date';
-  if (!rec.date) date.classList.add('is-empty');
+  date.className = 'mini-date' + (rec.date ? '' : ' is-empty');
   date.innerHTML = buildDateHTML(rec.date);
 
-  card.append(name, div, date);
+  body.append(name, div, date);
+  card.append(bar, body);
   attachCardHandlers(card);
   return card;
 }

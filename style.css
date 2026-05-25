@@ -265,27 +265,25 @@ body {
 }
 
 /* ==================================================================
-   SIDEBAR (forma reduzida)
+   SIDEBAR (forma reduzida — mesmo padrão visual dos cards principais)
    ================================================================== */
 .sidebar {
   grid-column: 2;
   grid-row: 1;
-  background: var(--chevron);
-  padding: 14px 8px;
+  background: #050505;
+  padding: 0;
   position: relative;
   z-index: 3;
   overflow: hidden;
+  border-left: 1px solid rgba(255,255,255,0.05);
 }
 .sidebar-inner {
-  background:
-    radial-gradient(circle at 50% 30%, rgba(255,255,255,0.025) 0, transparent 60%),
-    linear-gradient(180deg, #181818 0%, #050505 100%);
-  border-radius: 4px;
+  background: transparent;
   height: 100%;
-  padding: 12px 10px;
+  padding: 8px 8px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 7px;
   overflow-y: auto;
   overflow-x: hidden;
   position: relative;
@@ -294,16 +292,6 @@ body {
 }
 .sidebar-inner::-webkit-scrollbar { width: 6px; }
 .sidebar-inner::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
-.sidebar-inner::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='3' seed='14'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.4 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-  background-size: 220px 220px;
-  mix-blend-mode: overlay;
-  opacity: 0.5;
-  pointer-events: none;
-}
 .sidebar.drop-active .sidebar-inner {
   box-shadow: inset 0 0 0 2px var(--gold);
 }
@@ -325,71 +313,79 @@ body {
 }
 .sidebar-inner:has(.card-mini) .sidebar-empty { display: none; }
 
-/* card reduzido (vertical / compacto) */
+/* card reduzido — mesmo design dos cards grandes (barra de urgência + nome + divisor + data) */
 .card-mini {
   position: relative;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.04) 0, transparent 55%),
-    linear-gradient(160deg, #1c1c1c 0%, #050505 100%);
-  border-radius: 4px;
-  padding: 10px 10px 12px 10px;
-  cursor: grab;
+  background: linear-gradient(165deg, #161616 0%, #0a0a0a 70%, #050505 100%);
+  border-radius: 7px;
+  display: grid;
+  grid-template-columns: 6px 1fr;
   overflow: hidden;
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.04),
-    0 2px 4px rgba(0,0,0,0.55);
+  cursor: grab;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 5px rgba(0,0,0,0.5);
   transition: transform 120ms ease, opacity 120ms ease;
-  z-index: 1;
+  flex-shrink: 0;
+  min-height: 110px;
 }
 .card-mini:hover { transform: translateY(-1px); }
 .card-mini:active { cursor: grabbing; }
 .card-mini.dragging { opacity: 0.45; transform: scale(0.96); }
 
-.card-mini::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' seed='6'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.45 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-  background-size: 200px 200px;
-  mix-blend-mode: overlay;
-  opacity: 0.5;
-  pointer-events: none;
+.mini-bar { background: var(--urg-soon); }
+.card-mini.urg-overdue .mini-bar { background: var(--urg-overdue); }
+.card-mini.urg-urgent  .mini-bar { background: var(--urg-urgent);  }
+.card-mini.urg-soon    .mini-bar { background: var(--urg-soon);    }
+.card-mini.urg-far     .mini-bar { background: var(--urg-far);     }
+.card-mini.urg-none    .mini-bar { background: var(--urg-none);    }
+
+.mini-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .card-mini .mini-name {
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: 18px;
-  line-height: 1;
+  font-size: 24px;
+  line-height: 0.95;
   color: var(--white);
   text-transform: uppercase;
   letter-spacing: 0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  position: relative;
-  z-index: 1;
+  filter: contrast(1.08);
 }
 .card-mini .mini-divider {
-  height: 1px;
-  background: linear-gradient(90deg, var(--gold-dim), var(--gold), transparent);
-  margin: 5px 0 6px 0;
-  width: 70%;
-  position: relative;
-  z-index: 1;
+  height: 2px;
+  width: 55%;
+  background: var(--urg-soon);
+  border-radius: 1px;
+  margin: 4px 0 0 0;
 }
+.card-mini.urg-overdue .mini-divider { background: var(--urg-overdue); }
+.card-mini.urg-urgent  .mini-divider { background: var(--urg-urgent);  }
+.card-mini.urg-soon    .mini-divider { background: var(--urg-soon);    }
+.card-mini.urg-far     .mini-divider { background: var(--urg-far);     }
+.card-mini.urg-none    .mini-divider { background: var(--urg-none); opacity: 0.4; }
+
 .card-mini .mini-date {
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: 26px;
+  font-size: 32px;
   line-height: 0.9;
-  color: var(--gold);
-  letter-spacing: 0.01em;
-  position: relative;
-  z-index: 1;
+  color: var(--urg-soon);
+  letter-spacing: 0.005em;
+  filter: contrast(1.05);
+  margin-top: 2px;
 }
-.card-mini .mini-date .sep {
-  margin: 0 2px;
-  opacity: 0.85;
-}
+.card-mini.urg-overdue .mini-date { color: var(--urg-overdue); }
+.card-mini.urg-urgent  .mini-date { color: var(--urg-urgent);  }
+.card-mini.urg-soon    .mini-date { color: var(--urg-soon);    }
+.card-mini.urg-far     .mini-date { color: var(--urg-far);     }
+.card-mini.urg-none    .mini-date { color: var(--urg-none); opacity: 0.7; }
+.card-mini .mini-date .sep { margin: 0 3px; opacity: 0.85; transform: translateY(-1px); display: inline-block; }
 .card-mini .mini-date .month { font-size: 0.85em; }
 
 /* ==================================================================
