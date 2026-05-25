@@ -38,6 +38,10 @@ const COL = { PROJETO: 1, CONTATO: 3, PRAZO: 4, FORNECEDOR: 6, PROCESSO: 7 };
 
 const FORNECEDORES_CONHECIDOS = ["MK","TG","IZ","XBZ","CRI"];
 
+// Dias úteis de antecedência operacional. Prazo do cliente recua N dias úteis
+// no painel pra dar margem de produção (entrega 2 dias antes do prazo final).
+const BUSINESS_DAYS_BACK = 2;
+
 // aliases -> sigla canônica. Aceita o que vier escrito na coluna G.
 const SUPPLIER_ALIASES = {
   MK:  ['MK', 'MIK', 'MIKE', 'MICKEY'],
@@ -140,6 +144,20 @@ function parseDate(s) {
 function formatDate(d) {
   if (!d) return null;
   return { day: String(d.day).padStart(2, '0'), month: MESES[d.month] || '' };
+}
+
+// Recua N dias úteis (pula sábado e domingo)
+function shiftBusinessDays(date, days) {
+  if (!date) return null;
+  const d = new Date(date.year, date.month, date.day);
+  const sign = days < 0 ? -1 : 1;
+  let n = Math.abs(days);
+  while (n > 0) {
+    d.setDate(d.getDate() + sign);
+    const dow = d.getDay();           // 0=dom 6=sab
+    if (dow !== 0 && dow !== 6) n--;
+  }
+  return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate() };
 }
 
 function parseFornecedores(s) {
@@ -297,8 +315,10 @@ function filterAndBuildRecords(rows) {
     if (!projeto) continue;
 
     const prazoRaw = (r[COL.PRAZO] || '').trim();
-    const date = prazoRaw ? parseDate(prazoRaw) : null;
-    // se TEM data: precisa ser do mês corrente em diante. Sem data passa.
+    const dateCliente = prazoRaw ? parseDate(prazoRaw) : null;
+    // recua 2 dias úteis pra dar margem de produção
+    const date = dateCliente ? shiftBusinessDays(dateCliente, -BUSINESS_DAYS_BACK) : null;
+    // se TEM data ajustada: precisa ser do mês corrente em diante. Sem data passa.
     if (date) {
       const dateMonths = date.year * 12 + date.month;
       const minMonths  = minYear * 12 + minMonth;
@@ -316,7 +336,8 @@ function filterAndBuildRecords(rows) {
       id,
       projeto: projeto.toUpperCase(),
       contato: (r[COL.CONTATO] || '').trim(),
-      date,
+      date,                  // data já ajustada (-2 dias úteis)
+      dateCliente,           // data original do cliente (pra mostrar no detalhe)
       fornecedores: parseFornecedores(r[COL.FORNECEDOR]),
       processos:    parseProcesso(r[COL.PROCESSO])
     });
@@ -576,13 +597,17 @@ function moveCard(id, target) {
   LOCATIONS.set(id, target);
   persistLocations();
 
-  document
-    .querySelectorAll(`[data-id="${cssEscape(id)}"]`)
-    .forEach(n => n.remove());
-
-  const rec = RECORDS.get(id);
-  if (target === 'sidebar') $sidebarInner.appendChild(buildCardMini(rec));
-  else                      $board.appendChild(buildCardFull(rec));
+  // sidebar: empilha no fim (ordem de quem chegou)
+  // board: re-renderiza tudo pra reordenar por data
+  if (target === 'sidebar') {
+    document
+      .querySelectorAll(`[data-id="${cssEscape(id)}"]`)
+      .forEach(n => n.remove());
+    const rec = RECORDS.get(id);
+    $sidebarInner.appendChild(buildCardMini(rec));
+  } else {
+    renderAll();
+  }
 
   if (activeDetailId === id) openDetail(id);
 }
