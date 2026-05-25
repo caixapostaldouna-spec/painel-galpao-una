@@ -60,7 +60,7 @@ body {
 .app {
   height: 100vh;
   display: grid;
-  grid-template-columns: 1fr 230px;
+  grid-template-columns: minmax(0, 1fr) clamp(170px, 13vw, 220px);
   grid-template-rows: 1fr;
   position: relative;
   background: #050505;
@@ -94,15 +94,16 @@ body {
   grid-row: 1;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 8px 10px;
+  padding: 6px 8px;
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(auto-fill, 110px);
-  grid-auto-columns: 280px;
-  gap: 7px;
+  grid-template-rows: repeat(auto-fill, 105px);
+  grid-auto-columns: 270px;
+  gap: 5px;
   position: relative;
-  z-index: 2;
+  z-index: 1;
   align-content: start;
+  min-width: 0;
   scrollbar-color: var(--gold-dim) #111;
   scrollbar-width: thin;
 }
@@ -273,9 +274,10 @@ body {
   background: #050505;
   padding: 0;
   position: relative;
-  z-index: 3;
+  z-index: 5;
   overflow: hidden;
-  border-left: 1px solid rgba(255,255,255,0.05);
+  border-left: 1px solid rgba(255,255,255,0.08);
+  box-shadow: -6px 0 10px rgba(0,0,0,0.6);
 }
 .sidebar-inner {
   background: transparent;
@@ -613,28 +615,27 @@ body {
    ================================================================== */
 @media (min-width: 1800px) {
   .board {
-    grid-template-rows: repeat(auto-fill, 115px);
-    grid-auto-columns: 295px;
+    grid-template-rows: repeat(auto-fill, 110px);
+    grid-auto-columns: 280px;
   }
-  .card-name { font-size: 32px; }
-  .card-date { font-size: 44px; }
+  .card-name { font-size: 30px; }
+  .card-date { font-size: 42px; }
 }
 @media (max-width: 1100px) {
   .board {
-    grid-template-rows: repeat(auto-fill, 135px);
-    grid-auto-columns: 250px;
+    grid-template-rows: repeat(auto-fill, 100px);
+    grid-auto-columns: 245px;
   }
-  .card-name { font-size: 26px; }
-  .card-date { font-size: 36px; }
+  .card-name { font-size: 25px; }
+  .card-date { font-size: 34px; }
 }
 @media (max-width: 900px) {
-  .app { grid-template-columns: 1fr 180px; }
   .board {
-    padding: 6px;
-    grid-template-rows: repeat(auto-fill, 125px);
-    grid-auto-columns: 230px;
+    padding: 5px;
+    grid-template-rows: repeat(auto-fill, 92px);
+    grid-auto-columns: 220px;
   }
   .card-name { font-size: 22px; }
-  .card-date { font-size: 30px; }
+  .card-date { font-size: 28px; }
   .detail { right: 190px; width: 320px; }
 }
