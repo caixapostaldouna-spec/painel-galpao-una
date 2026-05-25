@@ -1,0 +1,27 @@
+ID,PROJETO,STATUS,CONTATO,PRAZO,OBS,FORNECEDOR,PROCESSO
+001,CABEÇALHO_VELHO,Arquivado,Cliente Antigo 01,03/02/2026,Anterior,MK,D
+002,JOB_FANTASMA,Arquivado,Cliente Antigo 02,15/03/2026,Anterior,TG,N
+003,REVISÃO_ANTIGA,Arquivado,Cliente Antigo 03,15/04/2026,Anterior,IZ,D
+004,TORUN,Iniciado,João Silva da Mata,02/05/2026,corte raglan,MK,D
+005,PARRILLITA,Em produção,Pedro Henrique Santos,19/06/2026,camiseta preta oversized,IZ,D
+006,LEANDRO,Em produção,Leandro dos Santos,07/05/2026,silk + dtf combinado,"MK, IZ","D, S"
+007,BRABO,Aguardando,Marcelo Reis Cardoso,25/05/2026,silk fluor amarelo,TG,S
+008,FORTE,Iniciado,Ana Paula Costa,25/07/2026,dtf branco premium,CRI,D
+009,GALPÃO,Em produção,Coletivo Galpão,30/06/2026,quatro fornecedores diferentes,"XBZ MK CRI TG",D
+010,FRENTE,Em produção,Bruno Lima Pereira,15/07/2026,duas cores silk,"IZ MK",S
+011,GIGANTE,Aguardando,Cliente Wide Format,22/05/2026,sem processo definido,TG,N
+012,DIVERSO,Em produção,Cliente Diverso,10/06/2026,três fornecedores,"MK, TG, IZ",D
+013,REVISÃO,Iniciado,Cliente Revisão,14/05/2026,detalhe na manga,XBZ,D
+014,NOITE,Em produção,Cliente Noite Carioca,28/07/2026,dtf + silk pretinho,"CRI, MK","D S"
+015,VENTANIA,Aguardando,Camila Mendes,12/06/2026,manga curta gola V,MK,D
+016,RELÂMPAGO,Em produção,Rafael Oliveira,05/07/2026,oversized + bordado,"TG, CRI",D
+017,SO_NOME,,,,,,
+018,RASCUNHO,,,,,,
+019,EM_BRANCO,,,,Sem prazo definido,MK,
+020,SEM_PROCESSO,,Cliente,18/06/2026,sem processo D/S/N,IZ,
+021,YEMANJA,,11 99545-0859,26/05/2026,teste alias,mk ok,S
+022,NOMADMANIA,,11 91285-3903,29/05/2026,multi fornecedores,mik | teg | xbz pedido,D
+023,COOKIES,,11 9975-3556,22/05/2026,palavras de status,mik e izzy ok,D
+024,HIGHLAND_BULL,,11 98252-3001,21/05/2026,mike + iz,mike e izzy pedido,D
+025,AXE,,11 98954-5081,15/05/2026,cliente trouxe,cliente ok,S
+026,BEEF_BOUTIC,,11 99005-0202,25/05/2026,cliente,cliente ok,D

@@ -1,0 +1,16 @@
+# desktop / SO
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# editor / claude
+.claude/
+.vscode/
+.idea/
+
+# server local (PowerShell HTTP)
+serve.ps1
+
+# screenshots de referência (não precisam ir pro deploy)
+Captura de tela*.png
+*.tmp
