@@ -78,6 +78,15 @@ let lastSignature = '';  // hash do CSV pra detectar mudança
 
 /* ---------- 4. CSV ------------------------------------------------------ */
 
+// hash djb2 — detecta qualquer mudança no conteúdo, mesmo no meio
+function quickHash(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return h;
+}
+
 function parseCSV(text) {
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   const rows = [];
@@ -215,8 +224,8 @@ async function loadData(silent = false) {
     return;
   }
 
-  // detecta mudança comparando assinatura conjunta
-  const sig = texts.map(t => `${t.length}|${t.slice(0,40)}|${t.slice(-40)}`).join('::');
+  // detecta mudança usando hash robusto (djb2) — pega edição no meio do CSV
+  const sig = texts.map(t => quickHash(t)).join('|');
   if (silent && sig === lastSignature) {
     updateStamp();
     return;
