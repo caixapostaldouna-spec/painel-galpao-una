@@ -185,6 +185,26 @@ function supplierClass(sig) {
   return 'sup-x';
 }
 
+/**
+ * Urgência calculada a partir da data:
+ *  overdue → hoje ou atrasado (vermelho)
+ *  urgent  → 1 a 3 dias (laranja)
+ *  soon    → 4 a 14 dias (dourado)
+ *  far     → 15+ dias (teal)
+ *  none    → sem data (cinza)
+ */
+function urgencyFor(date) {
+  if (!date) return 'none';
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(date.year, date.month, date.day);
+  const diff = Math.round((target - today) / 86400000);
+  if (diff <= 0) return 'overdue';
+  if (diff <= 3)  return 'urgent';
+  if (diff <= 14) return 'soon';
+  return 'far';
+}
+
 function slugify(s) {
   return String(s)
     .normalize('NFD').replace(/[̀-ͯ]/g, '')   // remove acentos
@@ -301,6 +321,12 @@ function filterAndBuildRecords(rows) {
       processos:    parseProcesso(r[COL.PROCESSO])
     });
   }
+  // ordena por data crescente (próxima primeiro). Sem data vai pro fim.
+  out.sort((a, b) => {
+    const aT = a.date ? a.date.year * 10000 + a.date.month * 100 + a.date.day : Infinity;
+    const bT = b.date ? b.date.year * 10000 + b.date.month * 100 + b.date.day : Infinity;
+    return aT - bT;
+  });
   return out;
 }
 
@@ -398,13 +424,17 @@ function buildDateHTML(date) {
 
 function buildCardFull(rec) {
   const card = document.createElement('div');
-  card.className = 'card';
+  const urg = urgencyFor(rec.date);
+  card.className = `card urg-${urg}`;
   card.dataset.id = rec.id;
   card.draggable = true;
 
-  const inner = document.createElement('div');
-  inner.className = 'card-inner';
-  if (!rec.date) inner.classList.add('no-date');
+  // barra colorida lateral esquerda
+  const bar = document.createElement('div');
+  bar.className = 'card-bar';
+
+  const body = document.createElement('div');
+  body.className = 'card-body';
 
   const name = document.createElement('div');
   name.className = 'card-name';
@@ -413,35 +443,32 @@ function buildCardFull(rec) {
   const divider = document.createElement('div');
   divider.className = 'card-divider';
 
+  // linha inferior: data à esquerda, fornecedor + processo à direita
+  const bottom = document.createElement('div');
+  bottom.className = 'card-bottom';
+
   const date = document.createElement('div');
-  date.className = 'card-date';
-  if (!rec.date) date.classList.add('is-empty');
+  date.className = 'card-date' + (rec.date ? '' : ' is-empty');
   date.innerHTML = buildDateHTML(rec.date);
 
-  const sup = document.createElement('div');
-  const count = rec.fornecedores.length;
-  sup.className = `card-suppliers count-${Math.min(Math.max(count,0),4)}`;
-  if (count === 0) sup.style.visibility = 'hidden';
-  else {
-    for (const f of rec.fornecedores) {
-      const s = document.createElement('div');
-      s.className = `supplier ${supplierClass(f)}`;
-      s.innerHTML = `${TSHIRT_SVG}<span class="sig">${escapeHTML(f)}</span>`;
-      sup.appendChild(s);
-    }
+  const tags = document.createElement('div');
+  tags.className = 'card-tags';
+  for (const f of rec.fornecedores) {
+    const pill = document.createElement('span');
+    pill.className = `sup-pill ${supplierClass(f)}`;
+    pill.textContent = f;
+    tags.appendChild(pill);
   }
-
-  const proc = document.createElement('div');
-  proc.className = 'card-process';
   for (const p of rec.processos) {
-    const b = document.createElement('span');
-    b.className = 'proc-btn';
-    b.textContent = p;
-    proc.appendChild(b);
+    const btn = document.createElement('span');
+    btn.className = 'proc-btn';
+    btn.textContent = p;
+    tags.appendChild(btn);
   }
 
-  inner.append(name, divider, date, sup, proc);
-  card.appendChild(inner);
+  bottom.append(date, tags);
+  body.append(name, divider, bottom);
+  card.append(bar, body);
   attachCardHandlers(card);
   return card;
 }
