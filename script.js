@@ -19,10 +19,10 @@
 //  Se o array ficar vazio, o painel usa dados.csv local automaticamente.
 // =========================================================================
 const SHEET_CSV_URLS = [
-  // MAIO 2026
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vR9cU8EpnGWSztvKFVZK0V0oTG7gvLwNU0kaxIepfpTBvj0oq4UmbeAbzVVod2t7g/pub?gid=749729533&single=true&output=csv",
-  // JUN 2026  — colar aqui quando publicar a aba de junho
-  // JUL 2026  — colar aqui quando publicar a aba de julho
+  // Apps Script Web App que consolida TODAS as abas mensais automaticamente.
+  // Quando você cria uma aba JUN 2026 / JUL 2026 / etc. na planilha, o
+  // script já enxerga e o painel passa a mostrar — sem trocar essa URL.
+  "https://script.google.com/macros/s/AKfycbxfRx6Alz5EOz-aUmMh3Q_8qX3RRnye4BAvDG8zqzYydUICBhqbu3UvyzOP0ly5BeMt/exec",
 ];
 
 const FALLBACK_CSV = "dados.csv";
