@@ -86,25 +86,25 @@ body {
 }
 
 /* ==================================================================
-   GRADE CENTRAL — flow em colunas (preenche top→bottom, depois next col)
+   GRADE CENTRAL — flow em colunas, cards compactos sem área vazia
+   linhas se calculam pela altura disponível (mais cards quando zoom out)
    ================================================================== */
 .board {
   grid-column: 1;
   grid-row: 1;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 18px 22px;
+  padding: 8px 10px;
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(4, minmax(0, 1fr));
-  grid-auto-columns: minmax(290px, 1fr);
-  gap: 14px;
+  grid-template-rows: repeat(auto-fill, 110px);
+  grid-auto-columns: 280px;
+  gap: 7px;
   position: relative;
   z-index: 2;
+  align-content: start;
   scrollbar-color: var(--gold-dim) #111;
   scrollbar-width: thin;
-  /* deixa espaço pro detalhe no canto inferior direito não tampar cards */
-  padding-bottom: 18px;
 }
 .board::-webkit-scrollbar { height: 10px; }
 .board::-webkit-scrollbar-track { background: #0a0a0a; }
@@ -112,7 +112,7 @@ body {
 
 .board.drop-active {
   outline: 2px dashed var(--gold);
-  outline-offset: -10px;
+  outline-offset: -8px;
 }
 
 /* brand removido - layout sem logo no grid (espaço ganho para cards) */
@@ -131,13 +131,14 @@ body {
 .card {
   position: relative;
   background: linear-gradient(165deg, #161616 0%, #0a0a0a 70%, #050505 100%);
-  border-radius: 8px;
+  border-radius: 7px;
   display: grid;
-  grid-template-columns: 5px 1fr;
+  grid-template-columns: 6px 1fr;
   overflow: hidden;
   cursor: grab;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 6px rgba(0,0,0,0.55);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 5px rgba(0,0,0,0.5);
   transition: transform 120ms ease, opacity 120ms ease;
+  min-height: 0;
 }
 .card:hover { transform: translateY(-1px); }
 .card:active { cursor: grabbing; }
@@ -153,17 +154,17 @@ body {
 .card.urg-none    .card-bar { background: var(--urg-none);    }
 
 .card-body {
-  padding: 12px 14px 12px 14px;
+  padding: 8px 14px 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
   min-height: 0;
   overflow: hidden;
+  gap: 4px;
 }
 
 .card-name {
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: 32px;
+  font-size: 30px;
   line-height: 0.95;
   letter-spacing: 0.01em;
   color: var(--white);
@@ -171,16 +172,15 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-top: 2px;
   filter: contrast(1.08);
 }
 
 .card-divider {
   height: 2px;
-  width: 38%;
+  width: 55%;
   background: var(--urg-soon);
   border-radius: 1px;
-  margin: 4px 0 6px 0;
+  margin: 6px 0 0 0;
 }
 .card.urg-overdue .card-divider { background: var(--urg-overdue); }
 .card.urg-urgent  .card-divider { background: var(--urg-urgent);  }
@@ -189,11 +189,10 @@ body {
 .card.urg-none    .card-divider { background: var(--urg-none); opacity: 0.4; }
 
 .card-bottom {
-  margin-top: auto;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 
 .card-date {
@@ -205,6 +204,7 @@ body {
   display: flex;
   align-items: baseline;
   filter: contrast(1.05);
+  flex-shrink: 0;
 }
 .card.urg-overdue .card-date { color: var(--urg-overdue); }
 .card.urg-urgent  .card-date { color: var(--urg-urgent);  }
@@ -227,21 +227,21 @@ body {
 .card-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 3px;
   justify-content: flex-end;
   align-items: center;
-  max-width: 55%;
+  max-width: 60%;
 }
 
 .sup-pill {
   font-family: 'Oswald', sans-serif;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
   color: #fff;
   background: var(--sup-x);
-  padding: 4px 9px 3px;
-  border-radius: 4px;
-  letter-spacing: 0.06em;
+  padding: 3px 7px 2px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
   line-height: 1;
   box-shadow: inset 0 -1px 0 rgba(0,0,0,0.35);
 }
@@ -256,12 +256,12 @@ body {
   background: var(--white);
   color: var(--black);
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: 14px;
-  padding: 3px 10px 2px;
-  border-radius: 4px;
+  font-size: 12px;
+  padding: 3px 8px 2px;
+  border-radius: 3px;
   letter-spacing: 0.04em;
   line-height: 1;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.5);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.4);
 }
 
 /* ==================================================================
@@ -617,23 +617,28 @@ body {
    ================================================================== */
 @media (min-width: 1800px) {
   .board {
-    grid-template-rows: repeat(4, minmax(0, 1fr));
-    grid-auto-columns: minmax(320px, 1fr);
-    gap: 16px;
+    grid-template-rows: repeat(auto-fill, 115px);
+    grid-auto-columns: 295px;
   }
-  .card-name { font-size: 34px; }
-  .card-date { font-size: 48px; }
+  .card-name { font-size: 32px; }
+  .card-date { font-size: 44px; }
 }
 @media (max-width: 1100px) {
   .board {
-    grid-template-rows: repeat(3, minmax(0, 1fr));
-    grid-auto-columns: minmax(260px, 1fr);
+    grid-template-rows: repeat(auto-fill, 135px);
+    grid-auto-columns: 250px;
   }
+  .card-name { font-size: 26px; }
+  .card-date { font-size: 36px; }
 }
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr 180px; }
-  .board { padding: 12px; }
-  .card-name { font-size: 24px; }
-  .card-date { font-size: 34px; }
+  .board {
+    padding: 6px;
+    grid-template-rows: repeat(auto-fill, 125px);
+    grid-auto-columns: 230px;
+  }
+  .card-name { font-size: 22px; }
+  .card-date { font-size: 30px; }
   .detail { right: 190px; width: 320px; }
 }
