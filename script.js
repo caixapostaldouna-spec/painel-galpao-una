@@ -443,11 +443,64 @@ function renderAll() {
     else                   $board.appendChild(buildCardFull(rec));
   }
 
+  recalcLayout();
+
   // se o detail está aberto e o card sumiu, fechar
   if (activeDetailId && !RECORDS.has(activeDetailId)) closeDetail();
   // se mudou, atualiza miniatura
   if (activeDetailId) openDetail(activeDetailId);
 }
+
+/* ----- Layout dinâmico ----------------------------------------------
+ * Calcula colunas e linhas baseado no espaço disponível e número de cards.
+ * Usa grid-auto-flow: column → preenche coluna a coluna (top-to-bottom).
+ * Quando o user faz zoom in/out, recalcula pra manter cards visíveis. */
+function recalcLayout() {
+  if (!$board) return;
+  const cards = $board.querySelectorAll('.card');
+  const total = cards.length;
+  if (total === 0) {
+    $board.style.removeProperty('grid-template-columns');
+    $board.style.removeProperty('grid-template-rows');
+    return;
+  }
+  const gap = 6;
+  const padding = 12;
+  const availW = $board.clientWidth  - padding;
+  const availH = $board.clientHeight - padding;
+  if (availW < 50 || availH < 50) return;
+
+  // tamanho ideal/mínimo do card
+  const targetCardW = 290;
+  const minCardW    = 140;
+  const minCardH    = 90;
+  const maxCardH    = 280;
+
+  // 1) número de colunas com base na largura alvo
+  let cols = Math.max(1, Math.floor((availW + gap) / (targetCardW + gap)));
+  // se não couber com targetCardW, tenta com minCardW
+  if (cols * (minCardW + gap) - gap > availW) {
+    cols = Math.max(1, Math.floor((availW + gap) / (minCardW + gap)));
+  }
+  cols = Math.min(cols, total);
+
+  // 2) linhas necessárias pra acomodar todos os cards
+  const rows = Math.ceil(total / cols);
+
+  // 3) altura por linha
+  let rowH = Math.floor((availH - gap * (rows - 1)) / rows);
+  rowH = Math.max(minCardH, Math.min(maxCardH, rowH));
+
+  $board.style.gridAutoFlow      = 'column';      // preenche por coluna
+  $board.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  $board.style.gridTemplateRows    = `repeat(${rows}, ${rowH}px)`;
+}
+
+// recalcula ao redimensionar (zoom in/out também dispara)
+window.addEventListener('resize', () => {
+  clearTimeout(window.__recalcTimer);
+  window.__recalcTimer = setTimeout(recalcLayout, 80);
+});
 
 function buildDateHTML(date) {
   const d = formatDate(date);
