@@ -631,6 +631,24 @@ function openDetail(id) {
 
   const dateHTML = buildDateHTML(rec.date);
   const noteText = getNoteFor(id);
+
+  // bloco de datas no detalhe: painel (-2 d.u.) e cliente original (se diferente)
+  let dateBlock = '';
+  if (rec.date) {
+    const dPainel = formatDate(rec.date);
+    let html = `<div class="detail-date-label">PAINEL</div>
+                <div class="detail-date-val">${dPainel.day} ${dPainel.month}</div>`;
+    if (rec.dateCliente) {
+      const dCli = formatDate(rec.dateCliente);
+      const igual = dCli.day === dPainel.day && dCli.month === dPainel.month;
+      if (!igual) {
+        html += `<div class="detail-date-label" style="margin-top:6px">CLIENTE</div>
+                 <div class="detail-date-val detail-date-cliente">${dCli.day} ${dCli.month}</div>`;
+      }
+    }
+    dateBlock = html;
+  }
+
   $detailContent.innerHTML = `
     <div class="detail-text">
       <div class="detail-name">${escapeHTML(line1)}</div>
@@ -644,6 +662,7 @@ function openDetail(id) {
         <div class="detail-mini-divider"></div>
         <div class="detail-mini-date${rec.date ? '' : ' is-empty'}">${dateHTML}</div>
       </div>
+      ${dateBlock ? `<div class="detail-dates">${dateBlock}</div>` : ''}
     </div>
     <div class="detail-note">
       <div class="detail-note-label">OBSERVAÇÃO</div>
@@ -694,8 +713,27 @@ function updateStamp() {
   const d = new Date();
   const hh = String(d.getHours()).padStart(2,'0');
   const mm = String(d.getMinutes()).padStart(2,'0');
-  const ss = String(d.getSeconds()).padStart(2,'0');
-  $stamp.textContent = `ATUALIZADO ${hh}:${mm}:${ss} · ${RECORDS.size} CARDS`;
+  $stamp.textContent = `${hh}:${mm}`;
+  updateStats();
+}
+
+function updateStats() {
+  const buckets = { overdue: 0, urgent: 0, soon: 0, far: 0, none: 0, ready: 0 };
+  for (const [id, rec] of RECORDS) {
+    if (LOCATIONS.get(id) === 'sidebar') { buckets.ready++; continue; }
+    const u = urgencyFor(rec.date);
+    if (buckets[u] != null) buckets[u]++;
+  }
+  setStat('stat-overdue', buckets.overdue);
+  setStat('stat-urgent',  buckets.urgent);
+  setStat('stat-soon',    buckets.soon);
+  setStat('stat-far',     buckets.far);
+  setStat('stat-none',    buckets.none);
+  setStat('stat-ready',   buckets.ready);
+}
+function setStat(id, n) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = n;
 }
 
 /* ---------- 12. AUTO-REFRESH ------------------------------------------- */
@@ -714,6 +752,17 @@ function scheduleRefresh() {
 function init() {
   setupDropZone($board,   'board');
   setupDropZone($sidebar, 'sidebar');
+
+  // botão refresh manual
+  const $btnRefresh = document.getElementById('btn-refresh');
+  if ($btnRefresh) {
+    $btnRefresh.addEventListener('click', async () => {
+      $btnRefresh.classList.add('spinning');
+      lastSignature = '';   // força detectar como mudança
+      await loadData(false);
+      setTimeout(() => $btnRefresh.classList.remove('spinning'), 600);
+    });
+  }
 
   document.addEventListener('click', (e) => {
     if (!activeDetailId) return;

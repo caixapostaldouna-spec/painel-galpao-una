@@ -61,7 +61,10 @@ body {
   height: 100vh;
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(135px, 11vw, 200px);
-  grid-template-rows: 1fr;
+  grid-template-rows: 36px 1fr;
+  grid-template-areas:
+    "topbar topbar"
+    "board  sidebar";
   position: relative;
   background: #050505;
   /* textura grunge global */
@@ -90,8 +93,7 @@ body {
    linhas se calculam pela altura disponível (mais cards quando zoom out)
    ================================================================== */
 .board {
-  grid-column: 1;
-  grid-row: 1;
+  grid-area: board;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 6px 8px;
@@ -220,6 +222,27 @@ body {
 .detail-mini-date.is-empty {
   opacity: 0.55;
 }
+.detail-dates {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  text-align: right;
+}
+.detail-date-label {
+  font-family: 'Oswald', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--gold-dim);
+  opacity: 0.85;
+}
+.detail-date-val {
+  font-family: 'Anton', 'Bebas Neue', sans-serif;
+  font-size: 13px;
+  color: var(--white);
+  line-height: 1;
+  margin-top: 1px;
+}
+.detail-date-cliente { color: var(--white-dim); opacity: 0.75; }
 .date-empty {
   font-family: 'Anton', 'Bebas Neue', sans-serif;
   letter-spacing: 0.35em;
@@ -270,8 +293,7 @@ body {
    SIDEBAR (forma reduzida — mesmo padrão visual dos cards principais)
    ================================================================== */
 .sidebar {
-  grid-column: 2;
-  grid-row: 1;
+  grid-area: sidebar;
   background: #050505;
   padding: 0;
   position: relative;
@@ -594,21 +616,95 @@ body {
 }
 
 /* ==================================================================
-   STAMP "ATUALIZADO HH:MM:SS"
+   TOPBAR: stats + botão atualizar + timestamp
    ================================================================== */
+.topbar {
+  grid-area: topbar;
+  background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px 0 10px;
+  z-index: 4;
+  position: relative;
+  gap: 12px;
+  overflow: hidden;
+}
+.stats {
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.stats::-webkit-scrollbar { display: none; }
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 4px 9px 3px 8px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.04);
+  color: var(--white-dim);
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-left: 3px solid transparent;
+}
+.stat strong {
+  font-family: 'Anton', sans-serif;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--white);
+  font-weight: normal;
+}
+.stat-overdue { border-color: var(--urg-overdue); }
+.stat-urgent  { border-color: var(--urg-urgent);  }
+.stat-soon    { border-color: var(--urg-soon);    }
+.stat-far     { border-color: var(--urg-far);     }
+.stat-none    { border-color: var(--urg-none);    }
+.stat-ready   { border-color: var(--white); background: rgba(255,255,255,0.07); }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
 .refresh-stamp {
-  position: fixed;
-  bottom: 10px;
-  left: 14px;
   font-family: 'Oswald', sans-serif;
   font-size: 10px;
   color: var(--gold-dim);
-  opacity: 0.75;
-  letter-spacing: 0.18em;
-  pointer-events: none;
-  z-index: 4;
+  opacity: 0.85;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
-  text-shadow: 0 1px 0 rgba(0,0,0,0.7);
+  white-space: nowrap;
+}
+.btn-refresh {
+  background: var(--gold-dim);
+  color: var(--black);
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, transform 200ms ease;
+}
+.btn-refresh:hover { background: var(--gold); }
+.btn-refresh:active { transform: rotate(360deg); }
+.btn-refresh.spinning { animation: spin 0.7s linear infinite; }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
 /* ==================================================================
