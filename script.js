@@ -440,7 +440,7 @@ function renderAll() {
 
 function buildDateHTML(date) {
   const d = formatDate(date);
-  if (!d) return `<span class="date-empty">—</span>`;
+  if (!d) return `— SEM DATA`;
   return `${d.day}<span class="sep">|</span><span class="month">${d.month}</span>`;
 }
 

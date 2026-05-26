@@ -132,14 +132,13 @@ body {
    ================================================================== */
 .board {
   grid-area: board;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 6px 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 6px;
   display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: repeat(auto-fill, clamp(95px, 13vh, 125px));
-  grid-auto-columns: minmax(170px, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-auto-rows: minmax(135px, 1fr);
+  gap: 6px;
   position: relative;
   z-index: 1;
   align-content: start;
@@ -148,7 +147,7 @@ body {
   scrollbar-color: var(--gold-dim) #111;
   scrollbar-width: thin;
 }
-.board::-webkit-scrollbar { height: 10px; }
+.board::-webkit-scrollbar { width: 8px; }
 .board::-webkit-scrollbar-track { background: #0a0a0a; }
 .board::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 4px; }
 
@@ -163,11 +162,11 @@ body {
    CARD — novo design limpo com barra lateral de urgência
    ================================================================== */
 :root {
-  --urg-overdue: #e53935;   /* vermelho */
-  --urg-urgent:  #f57c1f;   /* laranja */
-  --urg-soon:    #E8B007;   /* dourado */
-  --urg-far:     #2d8584;   /* teal */
-  --urg-none:    #555555;   /* cinza  */
+  --urg-overdue: #e53935;   /* vermelho — atrasado */
+  --urg-urgent:  #f57c1f;   /* laranja  — hoje/amanhã */
+  --urg-soon:    #E8B007;   /* amarelo  — semana */
+  --urg-far:     #00acc1;   /* ciano    — futuro */
+  --urg-none:    #555555;   /* cinza    — sem data */
 }
 
 .card {
@@ -227,16 +226,20 @@ body {
 
 .card-name {
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: clamp(16px, 1.7vw, 30px);
-  line-height: 1.05;
-  letter-spacing: 0.01em;
+  font-size: clamp(20px, 1.9vw, 38px);
+  line-height: 1.0;
+  letter-spacing: 0.005em;
   color: var(--white);
   text-transform: uppercase;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;          /* até 2 linhas */
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
+  overflow-wrap: anywhere;
   filter: contrast(1.08);
   padding-top: 2px;
+  min-width: 0;
 }
 
 .card-divider {
@@ -257,11 +260,12 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 
 .card-date {
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: clamp(22px, 2.4vw, 44px);
+  font-size: clamp(28px, 3vw, 56px);
   line-height: 1.0;
   color: var(--urg-soon);
   letter-spacing: 0.005em;
@@ -270,6 +274,14 @@ body {
   filter: contrast(1.05);
   flex-shrink: 0;
   padding-top: 2px;
+}
+.card-date.is-empty {
+  font-size: clamp(11px, 0.95vw, 16px);
+  letter-spacing: 0.15em;
+  color: var(--urg-none);
+  opacity: 0.65;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
 }
 .card.urg-overdue .card-date { color: var(--urg-overdue); }
 .card.urg-urgent  .card-date { color: var(--urg-urgent);  }
@@ -309,14 +321,14 @@ body {
   letter-spacing: 0.35em;
 }
 
-/* tags (fornecedor + processo) na lateral direita inferior */
+/* tags (fornecedor + processo) empilhadas vertical ao lado da data */
 .card-tags {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 3px;
-  justify-content: flex-end;
-  align-items: center;
-  max-width: 60%;
+  align-items: flex-end;
+  flex-shrink: 0;
+  max-width: 50%;
 }
 
 .sup-pill {
