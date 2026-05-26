@@ -775,11 +775,31 @@ function openMotorista(id) {
   const modal   = document.getElementById('motorista-modal');
   const content = document.getElementById('motorista-content');
   const title   = document.getElementById('motorista-title');
-  title.textContent = rec.projetoFull || rec.projeto;
-  // restaura nota salva (HTML)
+  title.textContent = (rec.projetoFull || rec.projeto) + ' — NOTAS PARA O MOTORISTA';
   content.innerHTML = getNoteFor(id) || '';
   modal.removeAttribute('hidden');
+  positionMotorista(id);
   setTimeout(() => content.focus(), 30);
+}
+
+function positionMotorista(id) {
+  const modal = document.getElementById('motorista-modal');
+  const card  = document.querySelector(`[data-id="${cssEscape(id)}"]`);
+  if (!card || !modal) return;
+  const r = card.getBoundingClientRect();
+  const margin = 8;
+  // o card mini fica na sidebar (direita). O popover vai ABAIXO do card,
+  // alinhado pela direita do card (espalha pra esquerda da sidebar).
+  modal.style.top  = `${Math.round(r.bottom + margin)}px`;
+  modal.style.left = 'auto';
+  modal.style.right = `${Math.round(window.innerWidth - r.right)}px`;
+  // se passar pela borda inferior, ancora ACIMA do card
+  setTimeout(() => {
+    const mr = modal.getBoundingClientRect();
+    if (mr.bottom > window.innerHeight - 8) {
+      modal.style.top = `${Math.round(r.top - mr.height - margin)}px`;
+    }
+  }, 0);
 }
 
 function closeMotorista() {
@@ -796,10 +816,16 @@ function setupMotoristaModal() {
   document.getElementById('motorista-close')
     .addEventListener('click', closeMotorista);
 
-  // click no fundo escuro (fora do frame) fecha
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeMotorista();
+  // click fora do popover fecha (mas não fecha se clicar num card-mini)
+  document.addEventListener('click', (e) => {
+    if (!activeMotoristaId) return;
+    if (modal.contains(e.target)) return;
+    if (e.target.closest('.card-mini')) return;   // permite trocar entre cards
+    closeMotorista();
   });
+  // reposicionar se a janela mudar de tamanho ou rolar
+  window.addEventListener('resize', () => activeMotoristaId && positionMotorista(activeMotoristaId));
+  window.addEventListener('scroll', () => activeMotoristaId && positionMotorista(activeMotoristaId));
 
   // CTRL+V — captura imagem ou texto, salva como HTML em LS_NOTES_KEY
   content.addEventListener('paste', async (e) => {

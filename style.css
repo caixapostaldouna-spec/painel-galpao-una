@@ -671,59 +671,54 @@ body {
 }
 
 /* ==================================================================
-   MODAL — NOTAS DO MOTORISTA (abre ao clicar num card da sidebar)
+   POPOVER — NOTAS DO MOTORISTA (abre ancorado ao card da sidebar)
    ================================================================== */
 .motorista-modal {
   position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.88);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 50;
-  padding: 24px;
-  animation: fade-in 150ms ease-out;
+  width: clamp(320px, 36vw, 620px);
+  max-height: 60vh;
+  animation: fade-in 120ms ease-out;
 }
 .motorista-modal[hidden] { display: none; }
 @keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .motorista-frame {
-  width: min(90vw, 1280px);
-  height: min(80vh, 800px);
-  background: var(--chevron);          /* borda zebrada amarelo/preto */
-  padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.9);
+  background: var(--chevron);
+  padding: 8px;
+  border-radius: 6px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.85);
   position: relative;
   display: flex;
   flex-direction: column;
+  max-height: 60vh;
 }
 
 .motorista-header {
-  position: absolute;
-  top: -1px;
-  left: 50%;
-  transform: translate(-50%, -100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 6px 4px;
+  gap: 8px;
+}
+.motorista-title {
   background: var(--gold);
   color: var(--black);
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: 16px;
+  font-size: 11px;
   letter-spacing: 0.2em;
-  padding: 6px 18px;
-  border-radius: 6px 6px 0 0;
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  padding: 3px 10px 2px;
+  border-radius: 3px;
   white-space: nowrap;
 }
 .motorista-close {
   background: transparent;
   border: none;
-  color: var(--black);
-  font-size: 22px;
+  color: var(--white);
+  font-size: 18px;
   font-weight: 700;
   cursor: pointer;
   line-height: 1;
@@ -734,39 +729,41 @@ body {
 .motorista-content {
   flex: 1;
   background: linear-gradient(160deg, #161616 0%, #050505 100%);
-  border-radius: 4px;
-  padding: 32px 40px;
+  border-radius: 3px;
+  padding: 16px 20px;
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: clamp(36px, 4.5vw, 78px);
-  line-height: 1.0;
+  font-size: clamp(22px, 2.2vw, 40px);
+  line-height: 1.05;
   color: var(--white);
   text-transform: uppercase;
   letter-spacing: 0.005em;
-  overflow: auto;
+  overflow-y: auto;
   outline: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
+  text-align: left;
   word-break: break-word;
   scrollbar-color: var(--gold-dim) #111;
+  min-height: 100px;
 }
 .motorista-content:empty::before {
   content: attr(data-placeholder);
   color: var(--gold-dim);
   opacity: 0.45;
   font-family: 'Oswald', sans-serif;
-  font-size: 18px;
+  font-size: 13px;
   letter-spacing: 0.2em;
+  text-align: center;
+  display: block;
+  padding-top: 24px;
 }
 .motorista-content img {
   max-width: 100%;
-  max-height: 100%;
+  max-height: 45vh;
   width: auto;
   height: auto;
   object-fit: contain;
-  align-self: center;
-  border-radius: 4px;
+  display: block;
+  margin: 0 auto;
+  border-radius: 3px;
 }
 
 /* ==================================================================
