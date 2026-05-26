@@ -14,11 +14,7 @@
   <main class="app">
 
     <!-- ===================== TOPBAR ================================== -->
-    <header class="topbar" id="topbar" aria-label="Status">
-      <div class="topbar-left">
-        <button class="btn-refresh" id="btn-refresh" title="Atualizar agora">↻</button>
-        <button class="btn-theme"   id="btn-theme"   title="Alternar tema dia / noite">☾</button>
-      </div>
+    <header class="topbar" id="topbar" aria-label="Relógio">
       <div class="topbar-clock" id="refresh-stamp">--:--</div>
     </header>
 
@@ -32,6 +28,10 @@
       <div class="sidebar-inner" id="sidebar-inner">
         <!-- cards reduzidos injetados aqui via JS -->
         <div class="sidebar-empty" id="sidebar-empty">AGUARDANDO RETIRADA</div>
+      </div>
+      <div class="sidebar-footer">
+        <button class="btn-refresh" id="btn-refresh" title="Atualizar agora">↻</button>
+        <button class="btn-theme"   id="btn-theme"   title="Alternar tema dia / noite">☾</button>
       </div>
     </aside>
 

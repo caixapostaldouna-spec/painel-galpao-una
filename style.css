@@ -104,7 +104,7 @@ body {
   height: 100vh;
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(135px, 11vw, 200px);
-  grid-template-rows: 58px 1fr;
+  grid-template-rows: 72px 1fr;
   grid-template-areas:
     "topbar topbar"
     "board  sidebar";
@@ -361,11 +361,14 @@ body {
   z-index: 5;
   overflow: hidden;
   border-left: 1px solid rgba(255,255,255,0.08);
-  box-shadow: -6px 0 10px rgba(0,0,0,0.6);
+  box-shadow: -6px 0 10px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
 }
 .sidebar-inner {
   background: transparent;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   padding: 8px 8px;
   display: flex;
   flex-direction: column;
@@ -375,6 +378,14 @@ body {
   position: relative;
   scrollbar-color: var(--gold-dim) #111;
   scrollbar-width: thin;
+}
+.sidebar-footer {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-card-3);
 }
 .sidebar-inner::-webkit-scrollbar { width: 6px; }
 .sidebar-inner::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
@@ -686,30 +697,22 @@ body {
   border-bottom: 1px solid var(--border-soft);
   display: flex;
   align-items: stretch;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 0;
   z-index: 4;
   position: relative;
 }
 
-.topbar-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 14px;
-  flex-shrink: 0;
-}
-
-/* relógio grande na direita, mesma largura da sidebar */
+/* relógio grande à direita, alinhado com a coluna lateral */
 .topbar-clock {
   width: clamp(135px, 11vw, 200px);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: clamp(28px, 2.6vw, 42px);
+  font-size: clamp(42px, 3.8vw, 64px);
   color: var(--gold);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   line-height: 1;
   border-left: 1px solid var(--border-soft);
   background: var(--bg-card-3);
@@ -717,44 +720,35 @@ body {
 
 /* === stats removidos do topbar (substituídos pelo relógio grande) === */
 .stat-overdue.has-count { animation: pulse-overdue 1.4s ease-in-out infinite; }
-.btn-refresh {
-  background: var(--gold-dim);
-  color: var(--black);
-  border: none;
-  width: 24px;
-  height: 24px;
+.btn-refresh,
+.btn-theme {
+  flex: 1;
+  height: 32px;
   border-radius: 4px;
   font-size: 16px;
-  font-weight: 700;
   cursor: pointer;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: background 120ms ease, transform 200ms ease;
+  font-weight: 700;
+}
+.btn-refresh {
+  background: var(--gold-dim);
+  color: var(--black);
+  border: none;
 }
 .btn-refresh:hover { background: var(--gold); }
-.btn-refresh:active { transform: rotate(360deg); }
 .btn-refresh.spinning { animation: spin 0.7s linear infinite; }
 @keyframes spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
-
 .btn-theme {
   background: transparent;
   color: var(--white);
   border: 1px solid var(--border-soft);
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  font-size: 13px;
-  cursor: pointer;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 120ms ease;
 }
 .btn-theme:hover {
   background: var(--bg-input-focus);
