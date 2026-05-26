@@ -22,7 +22,7 @@ const SHEET_CSV_URLS = [
   // Apps Script Web App que consolida TODAS as abas mensais automaticamente.
   // Quando você cria uma aba JUN 2026 / JUL 2026 / etc. na planilha, o
   // script já enxerga e o painel passa a mostrar — sem trocar essa URL.
-  "https://script.google.com/macros/s/AKfycbxfRx6Alz5EOz-aUmMh3Q_8qX3RRnye4BAvDG8zqzYydUICBhqbu3UvyzOP0ly5BeMt/exec",
+  "https://script.google.com/macros/s/AKfycbxMElI20E_BS-kuifnT7FJ8Ys64ROCWJfh7qUdNkJMkG6ZTTV95Svih_qV91LPq4T41QQ/exec",
 ];
 
 const FALLBACK_CSV = "dados.csv";
