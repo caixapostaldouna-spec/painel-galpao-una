@@ -14,20 +14,12 @@
   <main class="app">
 
     <!-- ===================== TOPBAR ================================== -->
-    <header class="topbar" id="topbar" aria-label="Resumo geral">
-      <div class="stats" id="stats">
-        <span class="stat stat-overdue"><strong id="stat-overdue">0</strong>ATRASADO</span>
-        <span class="stat stat-urgent" ><strong id="stat-urgent" >0</strong>HOJE/AMANHÃ</span>
-        <span class="stat stat-soon"   ><strong id="stat-soon"   >0</strong>NA SEMANA</span>
-        <span class="stat stat-far"    ><strong id="stat-far"    >0</strong>FUTURO</span>
-        <span class="stat stat-none"   ><strong id="stat-none"   >0</strong>SEM DATA</span>
-        <span class="stat stat-ready"  ><strong id="stat-ready"  >0</strong>P/ RETIRAR</span>
-      </div>
-      <div class="topbar-right">
-        <span class="refresh-stamp" id="refresh-stamp"></span>
+    <header class="topbar" id="topbar" aria-label="Status">
+      <div class="topbar-left">
         <button class="btn-refresh" id="btn-refresh" title="Atualizar agora">↻</button>
         <button class="btn-theme"   id="btn-theme"   title="Alternar tema dia / noite">☾</button>
       </div>
+      <div class="topbar-clock" id="refresh-stamp">--:--</div>
     </header>
 
     <!-- ===================== ÁREA CENTRAL =========================== -->

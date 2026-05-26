@@ -104,7 +104,7 @@ body {
   height: 100vh;
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(135px, 11vw, 200px);
-  grid-template-rows: 36px 1fr;
+  grid-template-rows: 58px 1fr;
   grid-template-areas:
     "topbar topbar"
     "board  sidebar";
@@ -339,15 +339,15 @@ body {
 
 .proc-btn {
   display: inline-block;
-  background: var(--white);
-  color: var(--black);
+  background: var(--proc-bg);
+  color: var(--proc-color);
   font-family: 'Anton', 'Bebas Neue', sans-serif;
   font-size: 12px;
   padding: 3px 8px 2px;
   border-radius: 3px;
   letter-spacing: 0.04em;
   line-height: 1;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.4);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.3);
 }
 
 /* ==================================================================
@@ -685,66 +685,38 @@ body {
   background: linear-gradient(180deg, var(--bg-topbar-1) 0%, var(--bg-topbar-2) 100%);
   border-bottom: 1px solid var(--border-soft);
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
-  padding: 0 12px 0 10px;
+  padding: 0;
   z-index: 4;
   position: relative;
-  gap: 12px;
-  overflow: hidden;
 }
-.stats {
-  display: flex;
-  gap: 4px;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.stats::-webkit-scrollbar { display: none; }
-.stat {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-family: 'Oswald', sans-serif;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  padding: 4px 9px 3px 8px;
-  border-radius: 3px;
-  background: var(--bg-input);
-  color: var(--white-dim);
-  text-transform: uppercase;
-  white-space: nowrap;
-  border-left: 3px solid transparent;
-}
-.stat strong {
-  font-family: 'Anton', sans-serif;
-  font-size: 16px;
-  line-height: 1;
-  color: var(--white);
-  font-weight: normal;
-}
-.stat-overdue { border-color: var(--urg-overdue); }
-.stat-urgent  { border-color: var(--urg-urgent);  }
-.stat-soon    { border-color: var(--urg-soon);    }
-.stat-far     { border-color: var(--urg-far);     }
-.stat-none    { border-color: var(--urg-none);    }
-.stat-ready   { border-color: var(--white); background: rgba(255,255,255,0.07); }
 
-.topbar-right {
+.topbar-left {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 0 14px;
   flex-shrink: 0;
 }
-.refresh-stamp {
-  font-family: 'Oswald', sans-serif;
-  font-size: 10px;
-  color: var(--gold-dim);
-  opacity: 0.85;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  white-space: nowrap;
+
+/* relógio grande na direita, mesma largura da sidebar */
+.topbar-clock {
+  width: clamp(135px, 11vw, 200px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Anton', 'Bebas Neue', sans-serif;
+  font-size: clamp(28px, 2.6vw, 42px);
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  line-height: 1;
+  border-left: 1px solid var(--border-soft);
+  background: var(--bg-card-3);
 }
+
+/* === stats removidos do topbar (substituídos pelo relógio grande) === */
+.stat-overdue.has-count { animation: pulse-overdue 1.4s ease-in-out infinite; }
 .btn-refresh {
   background: var(--gold-dim);
   color: var(--black);

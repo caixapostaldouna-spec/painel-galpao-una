@@ -715,31 +715,10 @@ function updateStamp() {
   const hh = String(d.getHours()).padStart(2,'0');
   const mm = String(d.getMinutes()).padStart(2,'0');
   $stamp.textContent = `${hh}:${mm}`;
-  updateStats();
 }
 
-function updateStats() {
-  const buckets = { overdue: 0, urgent: 0, soon: 0, far: 0, none: 0, ready: 0 };
-  for (const [id, rec] of RECORDS) {
-    if (LOCATIONS.get(id) === 'sidebar') { buckets.ready++; continue; }
-    const u = urgencyFor(rec.date);
-    if (buckets[u] != null) buckets[u]++;
-  }
-  setStat('stat-overdue', buckets.overdue);
-  setStat('stat-urgent',  buckets.urgent);
-  setStat('stat-soon',    buckets.soon);
-  setStat('stat-far',     buckets.far);
-  setStat('stat-none',    buckets.none);
-  setStat('stat-ready',   buckets.ready);
-}
-function setStat(id, n) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = n;
-  // marca .has-count no <span> pai (.stat-X) quando houver pelo menos 1
-  const stat = el.closest('.stat');
-  if (stat) stat.classList.toggle('has-count', n > 0);
-}
+// relógio ticando a cada minuto
+setInterval(updateStamp, 60000);
 
 /* ---------- 12. AUTO-REFRESH ------------------------------------------- */
 
@@ -765,6 +744,7 @@ function init() {
       $btnRefresh.classList.add('spinning');
       lastSignature = '';   // força detectar como mudança
       await loadData(false);
+      broadcastSync('refresh');                // propaga pras outras abas
       setTimeout(() => $btnRefresh.classList.remove('spinning'), 600);
     });
   }
@@ -800,7 +780,46 @@ function init() {
     }
   } catch (_) {}
 
+  setupCrossTabSync();
   loadData().then(() => scheduleRefresh());
+}
+
+/* Sincronização entre abas — quando user faz ação em uma aba, todas as
+ * outras abas abertas refletem (drag, finalize, nota, tema, refresh). */
+const LS_SYNC_KEY = 'painel-galpao-sync-v1';
+
+function broadcastSync(kind) {
+  try { localStorage.setItem(LS_SYNC_KEY, `${kind}|${Date.now()}|${Math.random()}`); } catch(_){}
+}
+
+function setupCrossTabSync() {
+  window.addEventListener('storage', (e) => {
+    if (!e.key) return;
+    if (e.key === LS_KEY) {
+      // posições mudaram em outra aba
+      try {
+        const arr = JSON.parse(e.newValue || '[]');
+        LOCATIONS.clear();
+        for (const [k,v] of arr) LOCATIONS.set(k, v);
+        renderAll();
+      } catch(_){}
+    } else if (e.key === LS_FINISHED_KEY) {
+      // alguém finalizou — recarrega tudo (pra remover do dataset)
+      lastSignature = '';
+      loadData(true);
+    } else if (e.key === LS_NOTES_KEY) {
+      // notas mudaram - se detail aberto, recarrega
+      if (activeDetailId) openDetail(activeDetailId);
+    } else if (e.key === LS_THEME_KEY) {
+      applyTheme(e.newValue || 'night');
+    } else if (e.key === LS_SYNC_KEY) {
+      const kind = String(e.newValue || '').split('|')[0];
+      if (kind === 'refresh') {
+        lastSignature = '';
+        loadData(true);
+      }
+    }
+  });
 }
 
 function loadTheme() {
