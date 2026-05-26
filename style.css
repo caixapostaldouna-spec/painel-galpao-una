@@ -137,8 +137,8 @@ body {
   padding: 6px 8px;
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(auto-fill, clamp(82px, 12vh, 120px));
-  grid-auto-columns: minmax(165px, 1fr);
+  grid-template-rows: repeat(auto-fill, clamp(95px, 13vh, 125px));
+  grid-auto-columns: minmax(170px, 1fr);
   gap: 4px;
   position: relative;
   z-index: 1;
@@ -218,18 +218,17 @@ body {
 .card.urg-none    .card-bar { background: var(--urg-none);    }
 
 .card-body {
-  padding: 8px 14px 10px 14px;
+  padding: 12px 14px 10px 14px;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
   gap: 4px;
 }
 
 .card-name {
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: clamp(18px, 2vw, 38px);
-  line-height: 0.95;
+  font-size: clamp(16px, 1.7vw, 30px);
+  line-height: 1.05;
   letter-spacing: 0.01em;
   color: var(--white);
   text-transform: uppercase;
@@ -237,6 +236,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   filter: contrast(1.08);
+  padding-top: 2px;
 }
 
 .card-divider {
@@ -261,14 +261,15 @@ body {
 
 .card-date {
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: clamp(24px, 2.8vw, 52px);
-  line-height: 0.9;
+  font-size: clamp(22px, 2.4vw, 44px);
+  line-height: 1.0;
   color: var(--urg-soon);
   letter-spacing: 0.005em;
   display: flex;
   align-items: baseline;
   filter: contrast(1.05);
   flex-shrink: 0;
+  padding-top: 2px;
 }
 .card.urg-overdue .card-date { color: var(--urg-overdue); }
 .card.urg-urgent  .card-date { color: var(--urg-urgent);  }
@@ -424,7 +425,7 @@ body {
 .card-mini.urg-none    .mini-bar { background: var(--urg-none);    }
 
 .mini-body {
-  padding: 10px 12px;
+  padding: 12px 12px 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -433,8 +434,8 @@ body {
 
 .card-mini .mini-name {
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: 24px;
-  line-height: 0.95;
+  font-size: 20px;
+  line-height: 1.05;
   color: var(--white);
   text-transform: uppercase;
   letter-spacing: 0.01em;
@@ -442,6 +443,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   filter: contrast(1.08);
+  padding-top: 2px;
 }
 .card-mini .mini-divider {
   height: 2px;
@@ -458,12 +460,12 @@ body {
 
 .card-mini .mini-date {
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: 32px;
-  line-height: 0.9;
+  font-size: 28px;
+  line-height: 1.0;
   color: var(--urg-soon);
   letter-spacing: 0.005em;
   filter: contrast(1.05);
-  margin-top: 2px;
+  margin-top: 4px;
 }
 .card-mini.urg-overdue .mini-date { color: var(--urg-overdue); }
 .card-mini.urg-urgent  .mini-date { color: var(--urg-urgent);  }
