@@ -3,7 +3,11 @@
    visual industrial: preto grunge + faixas amarelo ouro
    ================================================================== */
 
+/* ==================================================================
+   Tokens de cor — alternáveis via [data-theme="day"] no <body>
+   ================================================================== */
 :root {
+  /* TEMA NOITE (padrão) */
   --gold:        #E8B007;
   --gold-dim:    #b58904;
   --black:       #0a0a0a;
@@ -19,37 +23,76 @@
   --sup-cri: #2a2a2a;
   --sup-x:   #444444;
 
-  /* faixa diagonal amarela/preta reutilizada */
-  --chevron:
-    repeating-linear-gradient(
-      -45deg,
-      var(--gold)   0,
-      var(--gold)   14px,
-      var(--black)  14px,
-      var(--black)  28px
-    );
+  /* superfícies adaptáveis */
+  --bg-app:        #050505;
+  --bg-card-1:     #161616;
+  --bg-card-2:     #0a0a0a;
+  --bg-card-3:     #050505;
+  --bg-topbar-1:   #0a0a0a;
+  --bg-topbar-2:   #050505;
+  --bg-sidebar:    #050505;
+  --bg-input:      rgba(255,255,255,0.04);
+  --bg-input-focus:rgba(255,255,255,0.07);
+  --border-soft:   rgba(255,255,255,0.06);
+  --shadow-card:   0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 5px rgba(0,0,0,0.5);
+  --proc-bg:       #f3f3f3;
+  --proc-color:    #0a0a0a;
 
+  /* faixa diagonal (legado, ainda usada no detail) */
+  --chevron:
+    repeating-linear-gradient(-45deg,
+      var(--gold) 0, var(--gold) 14px,
+      var(--black) 14px, var(--black) 28px);
   --chevron-thin:
-    repeating-linear-gradient(
-      -45deg,
-      var(--gold)   0,
-      var(--gold)   9px,
-      var(--black)  9px,
-      var(--black)  18px
-    );
+    repeating-linear-gradient(-45deg,
+      var(--gold) 0, var(--gold) 9px,
+      var(--black) 9px, var(--black) 18px);
+}
+
+/* TEMA DIA — ativado por <body data-theme="day"> */
+body[data-theme="day"] {
+  --gold:        #b07300;
+  --gold-dim:    #8a5a00;
+  --black:       #1a1a1a;
+  --black-2:     #2a2a2a;
+  --black-3:     #3a3a3a;
+  --white:       #1a1a1a;       /* texto principal escuro */
+  --white-dim:   #555555;
+
+  --sup-mk:  #1f6b6a;
+  --sup-tg:  #8a5a00;
+  --sup-iz:  #8a1c1c;
+  --sup-xbz: #8a1c1c;
+  --sup-cri: #3a3a3a;
+  --sup-x:   #555555;
+
+  --bg-app:        #d8d8d8;
+  --bg-card-1:     #ffffff;
+  --bg-card-2:     #f3f3f3;
+  --bg-card-3:     #e8e8e8;
+  --bg-topbar-1:   #ffffff;
+  --bg-topbar-2:   #f0f0f0;
+  --bg-sidebar:    #c8c8c8;
+  --bg-input:      rgba(0,0,0,0.05);
+  --bg-input-focus:rgba(0,0,0,0.08);
+  --border-soft:   rgba(0,0,0,0.12);
+  --shadow-card:   0 1px 0 rgba(255,255,255,0.6) inset, 0 2px 5px rgba(0,0,0,0.18);
+  --proc-bg:       #1a1a1a;     /* botão DTF/SILK invertido */
+  --proc-color:    #f5f5f5;
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
 
 body {
-  background: #050505;
+  background: var(--bg-app);
   color: var(--white);
   font-family: 'Oswald', sans-serif;
   overflow: hidden;
   user-select: none;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  transition: background 200ms ease, color 200ms ease;
 }
 
 .svg-defs { position: absolute; }
@@ -66,12 +109,7 @@ body {
     "topbar topbar"
     "board  sidebar";
   position: relative;
-  background: #050505;
-  /* textura grunge global */
-  background-image:
-    radial-gradient(circle at 18% 12%, rgba(255,255,255,0.025) 0, transparent 38%),
-    radial-gradient(circle at 82% 88%, rgba(255,255,255,0.020) 0, transparent 42%),
-    radial-gradient(circle at 50% 50%, rgba(0,0,0,0.55)         0, transparent 70%);
+  background: var(--bg-app);
 }
 
 /* ruído fino sobreposto na app inteira */
@@ -134,14 +172,14 @@ body {
 
 .card {
   position: relative;
-  background: linear-gradient(165deg, #161616 0%, #0a0a0a 70%, #050505 100%);
+  background: linear-gradient(165deg, var(--bg-card-1) 0%, var(--bg-card-2) 70%, var(--bg-card-3) 100%);
   border-radius: 7px;
   display: grid;
   grid-template-columns: 6px 1fr;
   overflow: hidden;
   cursor: grab;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 5px rgba(0,0,0,0.5);
-  transition: transform 120ms ease, opacity 120ms ease;
+  box-shadow: var(--shadow-card);
+  transition: transform 120ms ease, opacity 120ms ease, background 200ms ease;
   min-height: 0;
 }
 .card:hover { transform: translateY(-1px); }
@@ -152,6 +190,28 @@ body {
   background: var(--urg-soon);
 }
 .card.urg-overdue .card-bar { background: var(--urg-overdue); }
+
+/* === pulso visual nos cards overdue (sempre piscando) ============= */
+@keyframes pulse-overdue {
+  0%, 100% { box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 2px 5px rgba(0,0,0,0.5); }
+  50%      { box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 0 0 3px rgba(229,57,53,0.65), 0 2px 10px rgba(229,57,53,0.45); }
+}
+@keyframes blink-bar {
+  0%, 100% { opacity: 1;   }
+  50%      { opacity: 0.35; }
+}
+.card.urg-overdue,
+.card-mini.urg-overdue {
+  animation: pulse-overdue 1.4s ease-in-out infinite;
+}
+.card.urg-overdue .card-bar,
+.card-mini.urg-overdue .mini-bar {
+  animation: blink-bar 0.9s ease-in-out infinite;
+}
+/* stat ATRASADO no topbar também pulsa quando há overdue */
+.stat-overdue.has-count {
+  animation: pulse-overdue 1.4s ease-in-out infinite;
+}
 .card.urg-urgent  .card-bar { background: var(--urg-urgent);  }
 .card.urg-soon    .card-bar { background: var(--urg-soon);    }
 .card.urg-far     .card-bar { background: var(--urg-far);     }
@@ -294,7 +354,7 @@ body {
    ================================================================== */
 .sidebar {
   grid-area: sidebar;
-  background: #050505;
+  background: var(--bg-sidebar);
   padding: 0;
   position: relative;
   z-index: 5;
@@ -341,7 +401,7 @@ body {
 /* card reduzido — mesmo design dos cards grandes (barra de urgência + nome + divisor + data) */
 .card-mini {
   position: relative;
-  background: linear-gradient(165deg, #161616 0%, #0a0a0a 70%, #050505 100%);
+  background: linear-gradient(165deg, var(--bg-card-1) 0%, var(--bg-card-2) 70%, var(--bg-card-3) 100%);
   border-radius: 7px;
   display: grid;
   grid-template-columns: 6px 1fr;
@@ -620,8 +680,8 @@ body {
    ================================================================== */
 .topbar {
   grid-area: topbar;
-  background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(180deg, var(--bg-topbar-1) 0%, var(--bg-topbar-2) 100%);
+  border-bottom: 1px solid var(--border-soft);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -648,7 +708,7 @@ body {
   letter-spacing: 0.12em;
   padding: 4px 9px 3px 8px;
   border-radius: 3px;
-  background: rgba(255,255,255,0.04);
+  background: var(--bg-input);
   color: var(--white-dim);
   text-transform: uppercase;
   white-space: nowrap;
@@ -705,6 +765,25 @@ body {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+
+.btn-theme {
+  background: transparent;
+  color: var(--white);
+  border: 1px solid var(--border-soft);
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease;
+}
+.btn-theme:hover {
+  background: var(--bg-input-focus);
 }
 
 /* ==================================================================

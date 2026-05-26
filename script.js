@@ -61,6 +61,7 @@ const SUPPLIER_IGNORE = new Set([
 const LS_KEY          = 'painel-galpao-locs-v1';
 const LS_FINISHED_KEY = 'painel-galpao-finished-v1';
 const LS_NOTES_KEY    = 'painel-galpao-notes-v1';
+const LS_THEME_KEY    = 'painel-galpao-theme-v1';
 
 // SVG silhueta camiseta usada no quadrado do fornecedor
 const TSHIRT_SVG = `
@@ -733,7 +734,11 @@ function updateStats() {
 }
 function setStat(id, n) {
   const el = document.getElementById(id);
-  if (el) el.textContent = n;
+  if (!el) return;
+  el.textContent = n;
+  // marca .has-count no <span> pai (.stat-X) quando houver pelo menos 1
+  const stat = el.closest('.stat');
+  if (stat) stat.classList.toggle('has-count', n > 0);
 }
 
 /* ---------- 12. AUTO-REFRESH ------------------------------------------- */
@@ -764,6 +769,18 @@ function init() {
     });
   }
 
+  // botão tema dia / noite
+  const $btnTheme = document.getElementById('btn-theme');
+  applyTheme(loadTheme());
+  if ($btnTheme) {
+    $btnTheme.addEventListener('click', () => {
+      const cur = document.body.dataset.theme || 'night';
+      const nxt = cur === 'day' ? 'night' : 'day';
+      applyTheme(nxt);
+      try { localStorage.setItem(LS_THEME_KEY, nxt); } catch(_){}
+    });
+  }
+
   document.addEventListener('click', (e) => {
     if (!activeDetailId) return;
     if ($detail.contains(e.target)) return;
@@ -784,6 +801,18 @@ function init() {
   } catch (_) {}
 
   loadData().then(() => scheduleRefresh());
+}
+
+function loadTheme() {
+  try { return localStorage.getItem(LS_THEME_KEY) || 'night'; } catch(_){ return 'night'; }
+}
+function applyTheme(theme) {
+  document.body.dataset.theme = theme;
+  const btn = document.getElementById('btn-theme');
+  if (btn) {
+    btn.textContent = theme === 'day' ? '☀' : '☾';
+    btn.title = theme === 'day' ? 'Mudar pra modo NOITE' : 'Mudar pra modo DIA';
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
