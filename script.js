@@ -462,6 +462,7 @@ function recalcLayout() {
   if (total === 0) {
     $board.style.removeProperty('grid-template-columns');
     $board.style.removeProperty('grid-template-rows');
+    $board.style.removeProperty('grid-auto-columns');
     return;
   }
   const gap = 6;
@@ -470,30 +471,35 @@ function recalcLayout() {
   const availH = $board.clientHeight - padding;
   if (availW < 50 || availH < 50) return;
 
-  // tamanho ideal/mínimo do card
   const targetCardW = 290;
-  const minCardW    = 140;
-  const minCardH    = 90;
-  const maxCardH    = 280;
+  const minCardW    = 180;
+  const minCardH    = 100;
+  const maxCardH    = 270;
 
-  // 1) número de colunas com base na largura alvo
-  let cols = Math.max(1, Math.floor((availW + gap) / (targetCardW + gap)));
-  // se não couber com targetCardW, tenta com minCardW
-  if (cols * (minCardW + gap) - gap > availW) {
-    cols = Math.max(1, Math.floor((availW + gap) / (minCardW + gap)));
+  // 1) determinar linhas FIXAS que cabem na altura disponível
+  //    cards menores → mais linhas; sempre dentro de min/max
+  const targetRowH = 200;
+  let rows = Math.max(1, Math.floor((availH + gap) / (targetRowH + gap)));
+  // tenta acomodar todos sem scroll horizontal se possível
+  const colsIdeal = Math.floor((availW + gap) / (targetCardW + gap));
+  if (colsIdeal > 0 && rows * colsIdeal < total) {
+    rows = Math.min(Math.ceil(total / Math.max(1, colsIdeal)),
+                    Math.max(1, Math.floor((availH + gap) / (minCardH + gap))));
   }
-  cols = Math.min(cols, total);
 
-  // 2) linhas necessárias pra acomodar todos os cards
-  const rows = Math.ceil(total / cols);
-
-  // 3) altura por linha
+  // 2) altura por linha agora
   let rowH = Math.floor((availH - gap * (rows - 1)) / rows);
   rowH = Math.max(minCardH, Math.min(maxCardH, rowH));
 
-  $board.style.gridAutoFlow      = 'column';      // preenche por coluna
-  $board.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-  $board.style.gridTemplateRows    = `repeat(${rows}, ${rowH}px)`;
+  // 3) largura por coluna (cards crescem em COLUNAS — quando passar, vira scroll horizontal)
+  let colW = Math.max(minCardW, Math.min(targetCardW, Math.floor((availW - gap * (Math.max(1, Math.ceil(total / rows)) - 1)) / Math.max(1, Math.ceil(total / rows)))));
+  // se acabar muito grande, segura no target
+  if (colW > targetCardW) colW = targetCardW;
+
+  $board.style.gridAutoFlow      = 'column';
+  $board.style.gridTemplateRows  = `repeat(${rows}, ${rowH}px)`;
+  $board.style.gridAutoColumns   = `${colW}px`;
+  $board.style.removeProperty('grid-template-columns');
 }
 
 // recalcula ao redimensionar (zoom in/out também dispara)
@@ -867,10 +873,10 @@ function setupMotoristaModal() {
         return;
       }
     }
-    // texto puro → CAIXA ALTA, com quebras de linha preservadas
+    // texto puro → mantém capitalização original, só converte quebras
     const text = (clip.getData('text/plain') || '').trim();
     if (!text) return;
-    content.innerHTML = textToUppercaseHTML(text);
+    content.innerHTML = textToHTML(text);
     saveNoteFor(activeMotoristaId, content.innerHTML);
     refreshMiniNoteTag(activeMotoristaId, content.innerHTML);
   });
@@ -899,6 +905,11 @@ function refreshMiniNoteTag(id, html) {
 
 function textToUppercaseHTML(txt) {
   return escapeHTML(String(txt).toUpperCase())
+    .replace(/\r\n|\r|\n/g, '<br>');
+}
+
+function textToHTML(txt) {
+  return escapeHTML(String(txt))
     .replace(/\r\n|\r|\n/g, '<br>');
 }
 

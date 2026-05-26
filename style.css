@@ -130,8 +130,8 @@ body {
    ================================================================== */
 .board {
   grid-area: board;
-  overflow-x: hidden;
-  overflow-y: auto;          /* scroll só quando muito pequeno */
+  overflow-x: auto;          /* scroll horizontal — sequência continua à direita */
+  overflow-y: hidden;
   padding: 6px;
   display: grid;
   /* grid-template-columns + grid-template-rows + grid-auto-flow são definidos via JS em recalcLayout() */
@@ -143,8 +143,9 @@ body {
   scrollbar-color: var(--gold-dim) #111;
   scrollbar-width: thin;
 }
-.board::-webkit-scrollbar { width: 8px; }
+.board::-webkit-scrollbar { height: 10px; width: 10px; }
 .board::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 4px; }
+.board::-webkit-scrollbar-track { background: #0a0a0a; }
 .board::-webkit-scrollbar-track { background: #0a0a0a; }
 .board::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 4px; }
 
@@ -514,19 +515,18 @@ body {
   font-weight: 700;
   font-size: 9px;
   letter-spacing: 0.18em;
-  color: var(--gold-dim);
+  color: #888888;
   text-transform: uppercase;
   padding: 3px 6px 2px;
 }
 .mini-note-body {
-  background: linear-gradient(160deg, #161616 0%, #050505 100%);
+  background: #ffffff;
   border-radius: 3px;
   padding: 6px 8px;
   font-family: 'Oswald', sans-serif;
   font-size: 11px;
   line-height: 1.25;
-  color: var(--white);
-  text-transform: uppercase;
+  color: #1a1a1a;
   word-break: break-word;
   max-height: 90px;
   overflow: hidden;
@@ -775,20 +775,20 @@ body {
 
 .motorista-content {
   flex: 1;
-  background: linear-gradient(160deg, #161616 0%, #050505 100%);
+  background: #ffffff;
   border-radius: 3px;
-  padding: 16px 20px;
-  font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: clamp(22px, 2.2vw, 40px);
-  line-height: 1.05;
-  color: var(--white);
-  text-transform: uppercase;
-  letter-spacing: 0.005em;
+  padding: 18px 22px;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 500;
+  font-size: clamp(16px, 1.6vw, 26px);
+  line-height: 1.25;
+  color: #1a1a1a;
+  letter-spacing: 0;
   overflow-y: auto;
   outline: none;
   text-align: left;
   word-break: break-word;
-  scrollbar-color: var(--gold-dim) #111;
+  scrollbar-color: var(--gold-dim) #fff;
   min-height: 100px;
 }
 .motorista-content:empty::before {
