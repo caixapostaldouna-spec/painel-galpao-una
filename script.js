@@ -744,7 +744,6 @@ function openDetail(id) {
   if (!contato) { line1 = rec.projeto; line2 = ''; }
 
   const dateHTML = buildDateHTML(rec.date);
-  const noteText = getNoteFor(id);
 
   // bloco de datas no detalhe: painel (-2 d.u.) e cliente original (se diferente)
   let dateBlock = '';
@@ -778,26 +777,8 @@ function openDetail(id) {
       </div>
       ${dateBlock ? `<div class="detail-dates">${dateBlock}</div>` : ''}
     </div>
-    <div class="detail-note">
-      <div class="detail-note-label">OBSERVAÇÃO</div>
-      <textarea class="detail-note-input" id="detail-note-input"
-        placeholder="cole link, telefone, status..."
-        rows="2">${escapeHTML(noteText)}</textarea>
-    </div>
   `;
   $detail.classList.add('active');
-
-  const $note = document.getElementById('detail-note-input');
-  if ($note) {
-    let noteTimer = null;
-    $note.addEventListener('input', () => {
-      clearTimeout(noteTimer);
-      noteTimer = setTimeout(() => saveNoteFor(id, $note.value), 250);
-    });
-    // bloqueia eventos do board (dragstart, etc) enquanto digita
-    $note.addEventListener('click', e => e.stopPropagation());
-    $note.addEventListener('mousedown', e => e.stopPropagation());
-  }
 }
 
 function closeDetail() {
