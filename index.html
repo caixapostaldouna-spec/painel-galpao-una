@@ -43,6 +43,21 @@
     <!-- ===================== TOAST de status ======================== -->
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+    <!-- ===================== MODAL NOTAS DO MOTORISTA =============== -->
+    <div class="motorista-modal" id="motorista-modal" hidden>
+      <div class="motorista-frame">
+        <div class="motorista-header">
+          <span class="motorista-title" id="motorista-title">NOTAS DO MOTORISTA</span>
+          <button class="motorista-close" id="motorista-close" title="Fechar">×</button>
+        </div>
+        <div class="motorista-content"
+             id="motorista-content"
+             contenteditable="true"
+             spellcheck="false"
+             data-placeholder="COLE A INFORMAÇÃO AQUI · CTRL+V"></div>
+      </div>
+    </div>
+
   </main>
 
   <script src="script.js"></script>

@@ -608,7 +608,12 @@ function attachCardHandlers(card) {
   });
   card.addEventListener('click', (e) => {
     e.stopPropagation();
-    openDetail(card.dataset.id);
+    if (card.classList.contains('card-mini')) {
+      // card da sidebar → abre NOTAS DO MOTORISTA (com paste de imagem/texto)
+      openMotorista(card.dataset.id);
+    } else {
+      openDetail(card.dataset.id);
+    }
   });
   // duplo-clique no card-mini finaliza o trabalho (some pra sempre)
   card.addEventListener('dblclick', (e) => {
@@ -756,6 +761,115 @@ function closeDetail() {
   $detail.classList.remove('active');
 }
 
+/* ---------- MODAL NOTAS DO MOTORISTA ---------------------------------
+ * Aberto ao clicar num card da sidebar.
+ * Aceita CTRL+V de imagem OU texto (texto vira CAIXA ALTA).
+ * Conteúdo salvo em LS_NOTES_KEY por id do card (compartilha com o detail).
+ */
+let activeMotoristaId = null;
+
+function openMotorista(id) {
+  const rec = RECORDS.get(id);
+  if (!rec) return;
+  activeMotoristaId = id;
+  const modal   = document.getElementById('motorista-modal');
+  const content = document.getElementById('motorista-content');
+  const title   = document.getElementById('motorista-title');
+  title.textContent = rec.projetoFull || rec.projeto;
+  // restaura nota salva (HTML)
+  content.innerHTML = getNoteFor(id) || '';
+  modal.removeAttribute('hidden');
+  setTimeout(() => content.focus(), 30);
+}
+
+function closeMotorista() {
+  activeMotoristaId = null;
+  const modal = document.getElementById('motorista-modal');
+  modal.setAttribute('hidden', '');
+}
+
+function setupMotoristaModal() {
+  const modal   = document.getElementById('motorista-modal');
+  const content = document.getElementById('motorista-content');
+  if (!modal || !content) return;
+
+  document.getElementById('motorista-close')
+    .addEventListener('click', closeMotorista);
+
+  // click no fundo escuro (fora do frame) fecha
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeMotorista();
+  });
+
+  // CTRL+V — captura imagem ou texto, salva como HTML em LS_NOTES_KEY
+  content.addEventListener('paste', async (e) => {
+    e.preventDefault();
+    if (!activeMotoristaId) return;
+    const clip = e.clipboardData;
+    // imagem?
+    for (const item of clip.items || []) {
+      if (item.type && item.type.startsWith('image/')) {
+        const blob = item.getAsFile();
+        if (!blob) continue;
+        const dataUrl = await blobToDataURL(blob);
+        const compact = await resizeImageDataUrl(dataUrl, 1280, 1280, 0.78);
+        content.innerHTML = `<img src="${compact}" alt="anexo">`;
+        saveNoteFor(activeMotoristaId, content.innerHTML);
+        return;
+      }
+    }
+    // texto puro → CAIXA ALTA, com quebras de linha preservadas
+    const text = (clip.getData('text/plain') || '').trim();
+    if (!text) return;
+    content.innerHTML = textToUppercaseHTML(text);
+    saveNoteFor(activeMotoristaId, content.innerHTML);
+  });
+
+  // editar manualmente também salva (debounced)
+  let saveTimer = null;
+  content.addEventListener('input', () => {
+    if (!activeMotoristaId) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveNoteFor(activeMotoristaId, content.innerHTML);
+    }, 350);
+  });
+}
+
+function textToUppercaseHTML(txt) {
+  return escapeHTML(String(txt).toUpperCase())
+    .replace(/\r\n|\r|\n/g, '<br>');
+}
+
+function blobToDataURL(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+}
+
+function resizeImageDataUrl(dataUrl, maxW, maxH, quality) {
+  return new Promise((res) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxW || h > maxH) {
+        const s = Math.min(maxW / w, maxH / h);
+        w = Math.round(w * s); h = Math.round(h * s);
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      try { res(c.toDataURL('image/jpeg', quality)); }
+      catch (_) { res(dataUrl); }   // fallback (CORS)
+    };
+    img.onerror = () => res(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 function escapeHTML(s) {
   return String(s).replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -832,8 +946,10 @@ function init() {
     closeDetail();
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeDetail();
+    if (e.key === 'Escape') { closeDetail(); closeMotorista(); }
   });
+
+  setupMotoristaModal();
 
   // restaurar LOCATIONS do localStorage antes do primeiro load
   try {
