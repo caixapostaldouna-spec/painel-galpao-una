@@ -560,6 +560,11 @@ function buildCardFull(rec) {
 }
 
 function buildCardMini(rec) {
+  // wrapper que segura o card-mini + a nota colada abaixo (uma "etiqueta")
+  const wrap = document.createElement('div');
+  wrap.className = 'mini-wrap';
+  wrap.dataset.id = rec.id;
+
   const card = document.createElement('div');
   const urg = urgencyFor(rec.date);
   card.className = `card-mini urg-${urg}`;
@@ -586,7 +591,24 @@ function buildCardMini(rec) {
   body.append(name, div, date);
   card.append(bar, body);
   attachCardHandlers(card);
-  return card;
+  wrap.appendChild(card);
+
+  // nota colada permanente — só aparece se houver conteúdo
+  const note = getNoteFor(rec.id);
+  if (note) wrap.appendChild(buildMiniNoteTag(note));
+
+  return wrap;
+}
+
+function buildMiniNoteTag(noteHTML) {
+  const tag = document.createElement('div');
+  tag.className = 'mini-note';
+  // header amarelo + conteúdo. Conteúdo já vem como HTML salvo.
+  tag.innerHTML = `
+    <div class="mini-note-label">NOTAS PARA O MOTORISTA</div>
+    <div class="mini-note-body">${noteHTML}</div>
+  `;
+  return tag;
 }
 
 /* ---------- 9. DRAG & DROP --------------------------------------------- */
@@ -841,6 +863,7 @@ function setupMotoristaModal() {
         const compact = await resizeImageDataUrl(dataUrl, 1280, 1280, 0.78);
         content.innerHTML = `<img src="${compact}" alt="anexo">`;
         saveNoteFor(activeMotoristaId, content.innerHTML);
+        refreshMiniNoteTag(activeMotoristaId, content.innerHTML);
         return;
       }
     }
@@ -849,6 +872,7 @@ function setupMotoristaModal() {
     if (!text) return;
     content.innerHTML = textToUppercaseHTML(text);
     saveNoteFor(activeMotoristaId, content.innerHTML);
+    refreshMiniNoteTag(activeMotoristaId, content.innerHTML);
   });
 
   // editar manualmente também salva (debounced)
@@ -858,8 +882,19 @@ function setupMotoristaModal() {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       saveNoteFor(activeMotoristaId, content.innerHTML);
+      refreshMiniNoteTag(activeMotoristaId, content.innerHTML);
     }, 350);
   });
+}
+
+// atualiza/cria/remove a etiqueta-nota abaixo do card-mini correspondente
+function refreshMiniNoteTag(id, html) {
+  const wrap = document.querySelector(`.mini-wrap[data-id="${cssEscape(id)}"]`);
+  if (!wrap) return;
+  const existing = wrap.querySelector('.mini-note');
+  if (existing) existing.remove();
+  if (html && html.trim()) wrap.appendChild(buildMiniNoteTag(html));
+  if (activeMotoristaId === id) positionMotorista(id);
 }
 
 function textToUppercaseHTML(txt) {
