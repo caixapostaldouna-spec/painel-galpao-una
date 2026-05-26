@@ -601,19 +601,35 @@ function buildCardMini(rec) {
 
   // nota colada permanente — só aparece se houver conteúdo
   const note = getNoteFor(rec.id);
-  if (note) wrap.appendChild(buildMiniNoteTag(note));
+  if (note) wrap.appendChild(buildMiniNoteTag(note, rec.id));
 
   return wrap;
 }
 
-function buildMiniNoteTag(noteHTML) {
+function buildMiniNoteTag(noteHTML, id) {
   const tag = document.createElement('div');
   tag.className = 'mini-note';
-  // header amarelo + conteúdo. Conteúdo já vem como HTML salvo.
+  tag.dataset.id = id || '';
   tag.innerHTML = `
-    <div class="mini-note-label">NOTAS PARA O MOTORISTA</div>
+    <div class="mini-note-label">
+      <span>NOTAS PARA O MOTORISTA</span>
+      <button class="mini-note-close" title="Apagar nota">×</button>
+    </div>
     <div class="mini-note-body">${noteHTML}</div>
   `;
+  const closeBtn = tag.querySelector('.mini-note-close');
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const cardId = tag.dataset.id || tag.closest('.mini-wrap')?.dataset.id;
+    if (!cardId) return;
+    clearNoteFor(cardId);
+    refreshMiniNoteTag(cardId, '');
+    if (activeMotoristaId === cardId) {
+      const content = document.getElementById('motorista-content');
+      if (content) content.innerHTML = '';
+    }
+  });
   return tag;
 }
 
@@ -899,7 +915,7 @@ function refreshMiniNoteTag(id, html) {
   if (!wrap) return;
   const existing = wrap.querySelector('.mini-note');
   if (existing) existing.remove();
-  if (html && html.trim()) wrap.appendChild(buildMiniNoteTag(html));
+  if (html && html.trim()) wrap.appendChild(buildMiniNoteTag(html, id));
   if (activeMotoristaId === id) positionMotorista(id);
 }
 
