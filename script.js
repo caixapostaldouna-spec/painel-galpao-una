@@ -224,6 +224,16 @@ function urgencyFor(date) {
   return 'far';
 }
 
+// limita nome do projeto a `max` chars, cortando em palavra completa se possível
+function shortName(s, max = 15) {
+  s = String(s || '').trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  if (lastSpace > Math.floor(max * 0.5)) return cut.slice(0, lastSpace);
+  return cut;
+}
+
 function slugify(s) {
   return String(s)
     .normalize('NFD').replace(/[̀-ͯ]/g, '')   // remove acentos
@@ -335,7 +345,8 @@ function filterAndBuildRecords(rows) {
 
     out.push({
       id,
-      projeto: projeto.toUpperCase(),
+      projeto: shortName(projeto.toUpperCase(), 15),
+      projetoFull: projeto.toUpperCase(),       // nome inteiro pro painel de detalhe
       contato: (r[COL.CONTATO] || '').trim(),
       date,                  // data já ajustada (-2 dias úteis)
       dateCliente,           // data original do cliente (pra mostrar no detalhe)
@@ -659,7 +670,7 @@ function openDetail(id) {
     </div>
     <div class="detail-mini">
       <div class="detail-mini-inner">
-        <div class="detail-mini-name">${escapeHTML(rec.projeto)}</div>
+        <div class="detail-mini-name">${escapeHTML(rec.projetoFull || rec.projeto)}</div>
         <div class="detail-mini-divider"></div>
         <div class="detail-mini-date${rec.date ? '' : ' is-empty'}">${dateHTML}</div>
       </div>

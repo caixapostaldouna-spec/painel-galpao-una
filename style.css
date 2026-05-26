@@ -104,10 +104,8 @@ body {
   height: 100vh;
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(135px, 11vw, 200px);
-  grid-template-rows: 72px 1fr;
-  grid-template-areas:
-    "topbar topbar"
-    "board  sidebar";
+  grid-template-rows: 1fr;
+  grid-template-areas: "board sidebar";
   position: relative;
   background: var(--bg-app);
 }
@@ -701,30 +699,19 @@ body {
 /* ==================================================================
    TOPBAR: stats + botão atualizar + timestamp
    ================================================================== */
-.topbar {
-  grid-area: topbar;
-  background: linear-gradient(180deg, var(--bg-topbar-1) 0%, var(--bg-topbar-2) 100%);
-  border-bottom: 1px solid var(--border-soft);
-  display: flex;
-  align-items: stretch;
-  justify-content: flex-end;
-  padding: 0;
-  z-index: 4;
-  position: relative;
-}
-
-/* relógio grande à direita, alinhado com a coluna lateral */
-.topbar-clock {
-  width: clamp(135px, 11vw, 200px);
+/* relógio agora vive dentro da sidebar */
+.sidebar-clock {
+  flex-shrink: 0;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: 'Anton', 'Bebas Neue', sans-serif;
-  font-size: clamp(42px, 3.8vw, 64px);
+  font-size: clamp(36px, 3.6vw, 60px);
   color: var(--gold);
   letter-spacing: 0.1em;
   line-height: 1;
-  border-left: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
   background: var(--bg-card-3);
 }
 
