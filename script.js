@@ -410,7 +410,6 @@ function loadFinishedSet() {
 }
 function markFinished(rec) {
   const list = loadFinishedList();
-  // remove duplicata e coloca no topo
   const filtered = list.filter(f => f.id !== rec.id);
   filtered.unshift({
     id: rec.id,
@@ -423,13 +422,14 @@ function markFinished(rec) {
     processos: rec.processos,
     finishedAt: Date.now()
   });
-  // limita a 50 finalizados (histórico recente)
   if (filtered.length > 50) filtered.length = 50;
   try { localStorage.setItem(LS_FINISHED_KEY, JSON.stringify(filtered)); } catch (_) {}
+  schedulePushRemote();
 }
 function unmarkFinished(id) {
   const list = loadFinishedList().filter(f => f.id !== id);
   try { localStorage.setItem(LS_FINISHED_KEY, JSON.stringify(list)); } catch (_) {}
+  schedulePushRemote();
 }
 
 /* -- notas por card ---------------------------------------------------- */
@@ -446,6 +446,7 @@ function saveNoteFor(id, text) {
   if (!text || !text.trim()) m.delete(id);
   else m.set(id, text);
   try { localStorage.setItem(LS_NOTES_KEY, JSON.stringify(Object.fromEntries(m))); } catch(_){}
+  schedulePushRemote();
 }
 function getNoteFor(id) {
   return loadNotesMap().get(id) || '';
@@ -749,6 +750,7 @@ function moveCard(id, target) {
   if (current === target) return;
   LOCATIONS.set(id, target);
   persistLocations();
+  schedulePushRemote();
 
   // sidebar: empilha no fim (ordem de quem chegou)
   // board: re-renderiza tudo pra reordenar por data
@@ -1085,8 +1087,20 @@ function scheduleRefresh() {
   clearTimeout(refreshTimer);
   refreshTimer = setTimeout(async () => {
     await loadData(true);
+    await pullRemoteState();   // puxa estado compartilhado (entre dispositivos)
     scheduleRefresh();
   }, REFRESH_MS);
+}
+
+// pull mais frequente do estado compartilhado (10s) — captura ações
+// recentes de outros dispositivos sem esperar o refresh de 30s do CSV
+let stateRefreshTimer = null;
+function scheduleStateRefresh() {
+  clearTimeout(stateRefreshTimer);
+  stateRefreshTimer = setTimeout(async () => {
+    await pullRemoteState();
+    scheduleStateRefresh();
+  }, 10000);
 }
 
 /* ---------- 13. INIT --------------------------------------------------- */
@@ -1157,15 +1171,77 @@ function init() {
   } catch (_) {}
 
   setupCrossTabSync();
-  loadData().then(() => scheduleRefresh());
+  loadData()
+    .then(() => pullRemoteState())     // primeira sincronização com remoto
+    .then(() => { scheduleRefresh(); scheduleStateRefresh(); });
 }
 
 /* Sincronização entre abas — quando user faz ação em uma aba, todas as
- * outras abas abertas refletem (drag, finalize, nota, tema, refresh). */
+ * outras abas abertas refletem (drag, finalize, nota, tema, refresh).
+ * Versão estendida: também sincroniza entre dispositivos diferentes via
+ * Apps Script Web App (POST/GET ?action=state). */
 const LS_SYNC_KEY = 'painel-galpao-sync-v1';
+let remoteStateUpdatedAt = 0;
+let pushTimer = null;
 
 function broadcastSync(kind) {
   try { localStorage.setItem(LS_SYNC_KEY, `${kind}|${Date.now()}|${Math.random()}`); } catch(_){}
+  schedulePushRemote();
+}
+
+async function pushRemoteState() {
+  const url = (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS[0] : '') || '';
+  if (!url.includes('script.google.com')) return;
+  try {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        locations: Object.fromEntries(LOCATIONS),
+        finished:  loadFinishedList(),
+        notes:     Object.fromEntries(loadNotesMap()),
+      })
+    });
+  } catch (err) {
+    console.warn('[sync] push falhou:', err);
+  }
+}
+
+function schedulePushRemote() {
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(pushRemoteState, 700);
+}
+
+async function pullRemoteState() {
+  const url = (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS[0] : '') || '';
+  if (!url.includes('script.google.com')) return;
+  try {
+    const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'action=state&_t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || typeof data.updatedAt !== 'number') return;
+    if (data.updatedAt <= remoteStateUpdatedAt) return;
+    remoteStateUpdatedAt = data.updatedAt;
+    applyRemoteState(data);
+  } catch (err) {
+    console.warn('[sync] pull falhou:', err);
+  }
+}
+
+function applyRemoteState(data) {
+  if (data.locations) {
+    LOCATIONS.clear();
+    for (const [k,v] of Object.entries(data.locations)) LOCATIONS.set(k, v);
+    persistLocations();
+  }
+  if (Array.isArray(data.finished)) {
+    try { localStorage.setItem(LS_FINISHED_KEY, JSON.stringify(data.finished)); } catch(_){}
+  }
+  if (data.notes) {
+    try { localStorage.setItem(LS_NOTES_KEY, JSON.stringify(data.notes)); } catch(_){}
+  }
+  renderAll();
+  if (activeDetailId) openDetail(activeDetailId);
 }
 
 function setupCrossTabSync() {
