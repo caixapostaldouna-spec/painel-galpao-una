@@ -389,19 +389,47 @@ function persistLocations() {
   } catch (_) { /* localStorage cheio ou bloqueado */ }
 }
 
-/* -- finalizados (somem pra sempre) ------------------------------------ */
-function loadFinishedSet() {
+/* -- finalizados (despachados) -----------------------------------------
+ * Agora guarda snapshot completo (não só id) — permite restaurar com
+ * todos os dados e listar os últimos despachados na sidebar. */
+function loadFinishedList() {
   try {
     const raw = localStorage.getItem(LS_FINISHED_KEY);
-    if (!raw) return new Set();
-    const arr = JSON.parse(raw);
-    return new Set(Array.isArray(arr) ? arr : []);
-  } catch (_) { return new Set(); }
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // back-compat: versão antiga guardava só array de strings
+    if (parsed.length > 0 && typeof parsed[0] === 'string') {
+      return parsed.map(id => ({ id, finishedAt: 0 }));
+    }
+    return parsed;
+  } catch (_) { return []; }
 }
-function markFinished(id) {
-  const set = loadFinishedSet();
-  set.add(id);
-  try { localStorage.setItem(LS_FINISHED_KEY, JSON.stringify([...set])); } catch (_) {}
+function loadFinishedSet() {
+  return new Set(loadFinishedList().map(f => f.id));
+}
+function markFinished(rec) {
+  const list = loadFinishedList();
+  // remove duplicata e coloca no topo
+  const filtered = list.filter(f => f.id !== rec.id);
+  filtered.unshift({
+    id: rec.id,
+    projeto: rec.projeto,
+    projetoFull: rec.projetoFull,
+    contato: rec.contato,
+    date: rec.date,
+    dateCliente: rec.dateCliente,
+    fornecedores: rec.fornecedores,
+    processos: rec.processos,
+    finishedAt: Date.now()
+  });
+  // limita a 50 finalizados (histórico recente)
+  if (filtered.length > 50) filtered.length = 50;
+  try { localStorage.setItem(LS_FINISHED_KEY, JSON.stringify(filtered)); } catch (_) {}
+}
+function unmarkFinished(id) {
+  const list = loadFinishedList().filter(f => f.id !== id);
+  try { localStorage.setItem(LS_FINISHED_KEY, JSON.stringify(list)); } catch (_) {}
 }
 
 /* -- notas por card ---------------------------------------------------- */
@@ -674,16 +702,23 @@ function attachCardHandlers(card) {
 function finishCard(id) {
   if (!RECORDS.has(id)) return;
   const rec = RECORDS.get(id);
-  if (!confirm(`Finalizar o trabalho "${rec.projeto}"?\n\nO card vai sumir do painel pra sempre (mesmo que continue na planilha).`)) return;
-  markFinished(id);
+  if (!confirm(`Despachar o trabalho "${rec.projeto}"?\n\nO card vai sair do painel (fica no histórico de despachados pra restaurar se precisar).`)) return;
+  markFinished(rec);    // salva snapshot completo
   clearNoteFor(id);
   RECORDS.delete(id);
   LOCATIONS.delete(id);
   persistLocations();
-  document.querySelectorAll(`[data-id="${cssEscape(id)}"]`).forEach(n => n.remove());
+  document.querySelectorAll(`.mini-wrap[data-id="${cssEscape(id)}"], .card-mini[data-id="${cssEscape(id)}"], .card[data-id="${cssEscape(id)}"]`).forEach(n => n.remove());
   if (activeDetailId === id) closeDetail();
-  showToast(`"${rec.projeto}" FINALIZADO`, 2200);
+  showToast(`"${rec.projeto}" DESPACHADO`, 2200);
   updateStamp();
+}
+
+function restoreCard(id) {
+  unmarkFinished(id);
+  lastSignature = '';   // força re-fetch
+  loadData(false);
+  showToast('RESTAURADO', 1800);
 }
 
 function setupDropZone(zoneEl, target) {
@@ -835,6 +870,78 @@ function closeMotorista() {
   activeMotoristaId = null;
   const modal = document.getElementById('motorista-modal');
   modal.setAttribute('hidden', '');
+}
+
+/* ---------- POPOVER DESPACHADOS ------------------------------------- */
+
+function openDispatched() {
+  const modal = document.getElementById('dispatched-modal');
+  const list  = document.getElementById('dispatched-list');
+  const empty = document.getElementById('dispatched-empty');
+  if (!modal || !list) return;
+
+  const items = loadFinishedList()
+    .slice()
+    .sort((a, b) => (b.finishedAt || 0) - (a.finishedAt || 0))
+    .slice(0, 10);
+
+  list.innerHTML = '';
+  if (items.length === 0) {
+    empty.hidden = false;
+  } else {
+    empty.hidden = true;
+    for (const it of items) {
+      const dateStr = it.date ? `${String(it.date.day).padStart(2,'0')}/${String(it.date.month+1).padStart(2,'0')}` : '— SEM DATA';
+      const when = it.finishedAt ? formatRelativeTime(it.finishedAt) : '';
+      const el = document.createElement('div');
+      el.className = 'dispatched-item';
+      el.innerHTML = `
+        <div class="dispatched-item-info">
+          <div class="dispatched-item-name">${escapeHTML(it.projetoFull || it.projeto || '?')}</div>
+          <div class="dispatched-item-meta">${dateStr}${when ? ' · ' + when : ''}</div>
+        </div>
+        <button class="dispatched-restore" data-id="${escapeHTML(it.id)}">↻ RESTAURAR</button>
+      `;
+      list.appendChild(el);
+    }
+    list.querySelectorAll('.dispatched-restore').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        restoreCard(id);
+        closeDispatched();
+      });
+    });
+  }
+
+  modal.removeAttribute('hidden');
+  positionDispatched();
+}
+
+function closeDispatched() {
+  const modal = document.getElementById('dispatched-modal');
+  if (modal) modal.setAttribute('hidden', '');
+}
+
+function positionDispatched() {
+  const modal = document.getElementById('dispatched-modal');
+  const sidebar = document.getElementById('sidebar');
+  if (!modal || !sidebar) return;
+  const r = sidebar.getBoundingClientRect();
+  modal.style.top  = `${Math.round(r.top + 20)}px`;
+  modal.style.right = `${Math.round(window.innerWidth - r.left + 8)}px`;
+  modal.style.left = 'auto';
+}
+
+function formatRelativeTime(ts) {
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'agora';
+  if (min < 60) return `${min} min atrás`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h}h atrás`;
+  const d = Math.floor(h / 24);
+  return `${d}d atrás`;
 }
 
 function setupMotoristaModal() {
@@ -1019,10 +1126,26 @@ function init() {
     closeDetail();
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { closeDetail(); closeMotorista(); }
+    if (e.key === 'Escape') { closeDetail(); closeMotorista(); closeDispatched(); }
   });
 
   setupMotoristaModal();
+
+  // click em área vazia da sidebar (não num card) → mostra despachados
+  $sidebarInner.addEventListener('click', (e) => {
+    if (e.target.closest('.card-mini, .mini-wrap, .mini-note, .mini-note-close')) return;
+    openDispatched();
+  });
+  // fechar com ESC ou click fora
+  document.addEventListener('click', (e) => {
+    const dm = document.getElementById('dispatched-modal');
+    if (!dm || dm.hidden) return;
+    if (dm.contains(e.target)) return;
+    if (e.target.closest('.sidebar-inner, .sidebar-empty')) return;
+    closeDispatched();
+  });
+  document.getElementById('dispatched-close')
+    .addEventListener('click', closeDispatched);
 
   // restaurar LOCATIONS do localStorage antes do primeiro load
   try {

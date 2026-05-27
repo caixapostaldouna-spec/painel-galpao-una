@@ -43,6 +43,20 @@
     <!-- ===================== TOAST de status ======================== -->
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+    <!-- ===================== POPOVER DESPACHADOS RECENTES ============ -->
+    <div class="dispatched-modal" id="dispatched-modal" hidden>
+      <div class="dispatched-frame">
+        <div class="dispatched-header">
+          <span class="dispatched-title">DESPACHADOS · ÚLTIMOS 10</span>
+          <button class="dispatched-close" id="dispatched-close" title="Fechar">×</button>
+        </div>
+        <div class="dispatched-list" id="dispatched-list"></div>
+        <div class="dispatched-empty" id="dispatched-empty" hidden>
+          Nenhum trabalho despachado ainda
+        </div>
+      </div>
+    </div>
+
     <!-- ===================== MODAL NOTAS DO MOTORISTA =============== -->
     <div class="motorista-modal" id="motorista-modal" hidden>
       <div class="motorista-frame">

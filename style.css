@@ -743,6 +743,121 @@ body {
 }
 
 /* ==================================================================
+   POPOVER — DESPACHADOS RECENTES (abre ao clicar em area vazia da sidebar)
+   ================================================================== */
+.dispatched-modal {
+  position: fixed;
+  z-index: 50;
+  width: clamp(320px, 32vw, 540px);
+  max-height: 70vh;
+  animation: fade-in 120ms ease-out;
+}
+.dispatched-modal[hidden] { display: none; }
+
+.dispatched-frame {
+  background: var(--chevron);
+  padding: 8px;
+  border-radius: 6px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.85);
+  display: flex;
+  flex-direction: column;
+  max-height: 70vh;
+}
+.dispatched-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 6px 4px;
+  gap: 8px;
+}
+.dispatched-title {
+  background: var(--gold);
+  color: var(--black);
+  font-family: 'Anton', 'Bebas Neue', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  padding: 3px 10px 2px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.dispatched-close {
+  background: transparent;
+  border: none;
+  color: var(--white);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+.dispatched-close:hover { color: var(--urg-overdue); }
+.dispatched-list {
+  background: linear-gradient(160deg, #161616 0%, #050505 100%);
+  border-radius: 3px;
+  padding: 8px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 80px;
+}
+.dispatched-empty {
+  text-align: center;
+  font-family: 'Oswald', sans-serif;
+  font-size: 12px;
+  color: var(--white-dim);
+  opacity: 0.6;
+  padding: 32px 12px;
+  font-style: italic;
+}
+.dispatched-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(255,255,255,0.04);
+  padding: 8px 10px;
+  border-radius: 4px;
+  border-left: 3px solid var(--gold-dim);
+}
+.dispatched-item-info { min-width: 0; flex: 1; }
+.dispatched-item-name {
+  font-family: 'Anton', 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  color: var(--white);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.1;
+}
+.dispatched-item-meta {
+  font-family: 'Oswald', sans-serif;
+  font-size: 10px;
+  color: var(--white-dim);
+  opacity: 0.7;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+.dispatched-restore {
+  background: var(--gold-dim);
+  color: var(--black);
+  border: none;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 6px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 120ms ease;
+}
+.dispatched-restore:hover { background: var(--gold); }
+
+/* ==================================================================
    POPOVER — NOTAS DO MOTORISTA (abre ancorado ao card da sidebar)
    ================================================================== */
 .motorista-modal {
