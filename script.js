@@ -18,15 +18,12 @@
 //
 //  Se o array ficar vazio, o painel usa dados.csv local automaticamente.
 // =========================================================================
-// URLs CSV publicadas diretamente do XLSX no Sheets (uma por aba mensal).
-//   Como publicar uma aba nova:
-//   Arquivo > Compartilhar > Publicar na web > escolher a aba >
-//   Valores separados por vírgula (.csv) > Publicar > copiar URL.
+// Apps Script Web App vinculado à planilha Sheets nativa
+// "STATUS - Projetos" (15Zqvldf2gIy8nqtNInOTHnQlzsIFLEFuxbkhLTkppVs).
+// Consolida automaticamente todas as abas com nome de mês
+// (MAIO 2026, JUN 2026, JUL 2026, etc.) com varredura completa.
 const SHEET_CSV_URLS = [
-  // MAIO 2026
-  "https://docs.google.com/spreadsheets/d/e/2PACX-1vR9cU8EpnGWSztvKFVZK0V0oTG7gvLwNU0kaxIepfpTBvj0oq4UmbeAbzVVod2t7g/pub?gid=749729533&single=true&output=csv",
-  // JUN 2026 — colar aqui quando publicar a aba
-  // JUL 2026 — colar aqui quando publicar a aba
+  "https://script.google.com/macros/s/AKfycbyNLmiFQkfCmUqWAdc5dZ48JNgAQn58nth0myjAGcW5ASy5yLwFRENueFkvxvmqlf-ZRw/exec",
 ];
 
 const FALLBACK_CSV = "dados.csv";
