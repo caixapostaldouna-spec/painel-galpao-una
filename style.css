@@ -743,6 +743,42 @@ body {
 }
 
 /* ==================================================================
+   OVERLAY — BORA ALMOÇAR (dias úteis 13:30 às 14:30)
+   ================================================================== */
+.lunch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: lunch-pulse 1.0s ease-in-out infinite;
+  cursor: pointer;
+}
+.lunch-overlay[hidden] { display: none; }
+.lunch-text {
+  font-family: 'Anton', 'Bebas Neue', sans-serif;
+  font-size: clamp(60px, 12vw, 220px);
+  color: #ffffff;
+  text-align: center;
+  line-height: 0.95;
+  letter-spacing: 0.04em;
+  text-shadow:
+    0 0 40px rgba(255,255,255,0.6),
+    0 4px 0 rgba(0,0,0,0.4);
+  filter: contrast(1.1);
+  animation: lunch-text-bounce 1.0s ease-in-out infinite;
+}
+@keyframes lunch-pulse {
+  0%, 100% { background: rgba(229,57,53,0.95); }
+  50%      { background: rgba(232,176,7,0.95); }
+}
+@keyframes lunch-text-bounce {
+  0%, 100% { transform: scale(1.0) rotate(-1deg); }
+  50%      { transform: scale(1.08) rotate(1deg); }
+}
+
+/* ==================================================================
    POPOVER — DESPACHADOS RECENTES (abre ao clicar em area vazia da sidebar)
    ================================================================== */
 .dispatched-modal {

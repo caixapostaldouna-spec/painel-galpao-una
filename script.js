@@ -1069,6 +1069,29 @@ function showToast(msg, ms = 1800) {
   toastTimer = setTimeout(() => $toast.classList.remove('show'), ms);
 }
 
+/* ----- BORA ALMOÇAR — dias úteis, 13:30 às 14:30 --------------------- */
+function isLunchTime() {
+  const now = new Date();
+  const day = now.getDay();                    // 0=dom, 1-5=úteis, 6=sab
+  if (day === 0 || day === 6) return false;
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const start = 13 * 60 + 30;                  // 13:30 = 810
+  const end   = 14 * 60 + 30;                  // 14:30 = 870
+  return minutes >= start && minutes <= end;
+}
+
+function checkLunchOverlay() {
+  const overlay = document.getElementById('lunch-overlay');
+  if (!overlay) return;
+  const shouldShow = isLunchTime();
+  const isVisible  = !overlay.hasAttribute('hidden');
+  if (shouldShow && !isVisible)  overlay.removeAttribute('hidden');
+  if (!shouldShow && isVisible)  overlay.setAttribute('hidden', '');
+}
+
+// inicia o ciclo de verificação (a cada 30s + um check imediato)
+setInterval(checkLunchOverlay, 30000);
+
 function updateStamp() {
   if (!$stamp) return;
   const d = new Date();
@@ -1171,6 +1194,7 @@ function init() {
   } catch (_) {}
 
   setupCrossTabSync();
+  checkLunchOverlay();   // mostra "BORA ALMOÇAR" se já é a hora
   loadData()
     .then(() => pullRemoteState())     // primeira sincronização com remoto
     .then(() => { scheduleRefresh(); scheduleStateRefresh(); });
