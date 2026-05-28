@@ -1115,6 +1115,21 @@ const FULL_REFRESH_MS  = 5 * 60 * 1000;   // 5 min
 const QUICK_REFRESH_MS = 30 * 1000;       // 30 s
 const STATE_PULL_MS    = 10 * 1000;       // 10 s
 
+/* ----- Auto-reload quando há build nova no servidor ----------------- */
+const MY_BUILD = document.querySelector('meta[name="build-version"]')?.content || '';
+async function checkForNewBuild() {
+  if (!MY_BUILD) return;
+  try {
+    const res = await fetch(window.location.pathname + '?_v=' + Date.now(), { cache: 'no-store' });
+    const html = await res.text();
+    const m = html.match(/name="build-version"\s+content="([^"]+)"/);
+    if (m && m[1] && m[1] !== MY_BUILD) {
+      console.log('[painel] nova versão detectada', m[1], '→ reload em 2s');
+      setTimeout(() => location.reload(), 2000);
+    }
+  } catch (_) {}
+}
+
 function startAllRefreshers() {
   // 30s: check rápido
   setInterval(async () => { await loadData(true); }, QUICK_REFRESH_MS);
@@ -1125,8 +1140,10 @@ function startAllRefreshers() {
   }, FULL_REFRESH_MS);
   // 10s: pull do state compartilhado
   setInterval(pullRemoteState, STATE_PULL_MS);
-  // verifica overlay BORA ALMOÇAR a cada minuto também
+  // verifica overlay BORA ALMOÇAR a cada 30s
   setInterval(checkLunchOverlay, 30000);
+  // 60s: verifica se há nova build (auto-reload)
+  setInterval(checkForNewBuild, 60000);
 }
 
 // quando a aba volta a ficar visível, força refresh imediato
