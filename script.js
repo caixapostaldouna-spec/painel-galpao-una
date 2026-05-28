@@ -1105,26 +1105,43 @@ setInterval(updateStamp, 60000);
 
 /* ---------- 12. AUTO-REFRESH ------------------------------------------- */
 
-function scheduleRefresh() {
-  if (REFRESH_MS <= 0) return;
-  clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(async () => {
+/* ----- AUTO-REFRESH em 3 camadas (resiliente) -----------------------
+ *  10s: state sync entre dispositivos
+ *  30s: check rápido do CSV (só re-renderiza se hash mudou)
+ *   5m: hard refresh — limpa cache e força fetch novo
+ *  +  : Page Visibility API — refresh imediato quando volta da background
+ */
+const FULL_REFRESH_MS  = 5 * 60 * 1000;   // 5 min
+const QUICK_REFRESH_MS = 30 * 1000;       // 30 s
+const STATE_PULL_MS    = 10 * 1000;       // 10 s
+
+function startAllRefreshers() {
+  // 30s: check rápido
+  setInterval(async () => { await loadData(true); }, QUICK_REFRESH_MS);
+  // 5min: hard refresh (força ignorar cache)
+  setInterval(async () => {
+    lastSignature = '';
     await loadData(true);
-    await pullRemoteState();   // puxa estado compartilhado (entre dispositivos)
-    scheduleRefresh();
-  }, REFRESH_MS);
+  }, FULL_REFRESH_MS);
+  // 10s: pull do state compartilhado
+  setInterval(pullRemoteState, STATE_PULL_MS);
+  // verifica overlay BORA ALMOÇAR a cada minuto também
+  setInterval(checkLunchOverlay, 30000);
 }
 
-// pull mais frequente do estado compartilhado (10s) — captura ações
-// recentes de outros dispositivos sem esperar o refresh de 30s do CSV
-let stateRefreshTimer = null;
-function scheduleStateRefresh() {
-  clearTimeout(stateRefreshTimer);
-  stateRefreshTimer = setTimeout(async () => {
-    await pullRemoteState();
-    scheduleStateRefresh();
-  }, 10000);
-}
+// quando a aba volta a ficar visível, força refresh imediato
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    lastSignature = '';
+    loadData(true);
+    pullRemoteState();
+    checkLunchOverlay();
+  }
+});
+
+// stubs antigos pra não quebrar — agora delegam pro setInterval acima
+function scheduleRefresh() { /* substituído por startAllRefreshers */ }
+function scheduleStateRefresh() { /* substituído por startAllRefreshers */ }
 
 /* ---------- 13. INIT --------------------------------------------------- */
 
@@ -1196,8 +1213,8 @@ function init() {
   setupCrossTabSync();
   checkLunchOverlay();   // mostra "BORA ALMOÇAR" se já é a hora
   loadData()
-    .then(() => pullRemoteState())     // primeira sincronização com remoto
-    .then(() => { scheduleRefresh(); scheduleStateRefresh(); });
+    .then(() => pullRemoteState())
+    .then(() => { startAllRefreshers(); });
 }
 
 /* Sincronização entre abas — quando user faz ação em uma aba, todas as
