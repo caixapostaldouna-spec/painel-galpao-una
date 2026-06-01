@@ -894,30 +894,33 @@ body {
 .dispatched-restore:hover { background: var(--gold); }
 
 /* ==================================================================
-   POPOVER — NOTAS DO MOTORISTA (abre ancorado ao card da sidebar)
+   POPOVER — NOTAS DO MOTORISTA (ancorado na parte inferior da tela)
    ================================================================== */
 .motorista-modal {
   position: fixed;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
   z-index: 50;
-  width: clamp(320px, 36vw, 620px);
-  max-height: 60vh;
-  animation: fade-in 120ms ease-out;
+  width: min(720px, calc(100vw - 24px));
+  max-height: 45vh;
+  animation: fade-in-up 140ms ease-out;
 }
 .motorista-modal[hidden] { display: none; }
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translate(-50%, 16px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
 }
 
 .motorista-frame {
   background: var(--chevron);
   padding: 8px;
   border-radius: 6px;
-  box-shadow: 0 14px 40px rgba(0,0,0,0.85);
+  box-shadow: 0 -14px 40px rgba(0,0,0,0.85);
   position: relative;
   display: flex;
   flex-direction: column;
-  max-height: 60vh;
+  max-height: 45vh;
 }
 
 .motorista-header {

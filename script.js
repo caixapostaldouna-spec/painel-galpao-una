@@ -462,11 +462,20 @@ function renderAll() {
   // limpa wrappers da sidebar (cada mini-wrap segura um .card-mini + a etiqueta de nota)
   [...$sidebarInner.querySelectorAll('.mini-wrap, .card-mini')].forEach(n => n.remove());
 
+  // separa em board / sidebar, ordena sidebar deixando cards-COM-NOTA no fim
+  const sidebarRecs = [];
   for (const [id, rec] of RECORDS) {
     const loc = LOCATIONS.get(id);
-    if (loc === 'sidebar') $sidebarInner.appendChild(buildCardMini(rec));
+    if (loc === 'sidebar') sidebarRecs.push(rec);
     else                   $board.appendChild(buildCardFull(rec));
   }
+  const notesMap = loadNotesMap();
+  sidebarRecs.sort((a, b) => {
+    const aHas = notesMap.has(a.id) ? 1 : 0;
+    const bHas = notesMap.has(b.id) ? 1 : 0;
+    return aHas - bHas;  // sem nota primeiro, com nota no fim
+  });
+  for (const rec of sidebarRecs) $sidebarInner.appendChild(buildCardMini(rec));
 
   recalcLayout();
 
@@ -840,31 +849,31 @@ function openMotorista(id) {
   title.textContent = (rec.projetoFull || rec.projeto) + ' — NOTAS PARA O MOTORISTA';
   content.innerHTML = getNoteFor(id) || '';
   modal.removeAttribute('hidden');
-  positionMotorista(id);
+  // posicao agora eh fixa no rodape (CSS), nao depende do card
   setTimeout(() => {
     content.focus();
     motoristaLoading = false;
   }, 150);
 }
 
-function positionMotorista(id) {
-  const modal = document.getElementById('motorista-modal');
-  const card  = document.querySelector(`[data-id="${cssEscape(id)}"]`);
-  if (!card || !modal) return;
-  const r = card.getBoundingClientRect();
-  const margin = 8;
-  // o card mini fica na sidebar (direita). O popover vai ABAIXO do card,
-  // alinhado pela direita do card (espalha pra esquerda da sidebar).
-  modal.style.top  = `${Math.round(r.bottom + margin)}px`;
-  modal.style.left = 'auto';
-  modal.style.right = `${Math.round(window.innerWidth - r.right)}px`;
-  // se passar pela borda inferior, ancora ACIMA do card
-  setTimeout(() => {
-    const mr = modal.getBoundingClientRect();
-    if (mr.bottom > window.innerHeight - 8) {
-      modal.style.top = `${Math.round(r.top - mr.height - margin)}px`;
+// Commit do popover — chamado ao Enter. Salva, fecha, e desce o card pro fim da lista.
+function commitMotorista() {
+  if (!activeMotoristaId) return;
+  const id = activeMotoristaId;
+  const content = document.getElementById('motorista-content');
+  if (content) {
+    const html = content.innerHTML;
+    if (html && html.trim()) {
+      saveNoteFor(id, html);
+      refreshMiniNoteTag(id, html);
     }
-  }, 0);
+  }
+  // desce o card pra parte de baixo da sidebar (apenas se ele estiver na sidebar)
+  const wrap = document.querySelector(`.mini-wrap[data-id="${cssEscape(id)}"]`);
+  if (wrap && $sidebarInner && $sidebarInner.contains(wrap)) {
+    $sidebarInner.appendChild(wrap);
+  }
+  closeMotorista();
 }
 
 function closeMotorista() {
@@ -960,9 +969,14 @@ function setupMotoristaModal() {
     if (e.target.closest('.card-mini')) return;   // permite trocar entre cards
     closeMotorista();
   });
-  // reposicionar se a janela mudar de tamanho ou rolar
-  window.addEventListener('resize', () => activeMotoristaId && positionMotorista(activeMotoristaId));
-  window.addEventListener('scroll', () => activeMotoristaId && positionMotorista(activeMotoristaId));
+  // Enter (sem Shift) commita: salva, desce o card pro fim da lista e fecha o popover.
+  // Shift+Enter mantém quebra de linha normal.
+  content.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      commitMotorista();
+    }
+  });
 
   // CTRL+V — captura imagem ou texto, salva como HTML em LS_NOTES_KEY
   content.addEventListener('paste', async (e) => {
@@ -1014,7 +1028,6 @@ function refreshMiniNoteTag(id, html) {
     if (existing) existing.remove();
     if (html && html.trim()) wrap.appendChild(buildMiniNoteTag(html, id));
   });
-  if (activeMotoristaId === id) positionMotorista(id);
 }
 
 function textToUppercaseHTML(txt) {
