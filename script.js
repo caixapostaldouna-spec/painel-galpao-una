@@ -876,7 +876,7 @@ function openDispatched() {
   const items = loadFinishedList()
     .slice()
     .sort((a, b) => (b.finishedAt || 0) - (a.finishedAt || 0))
-    .slice(0, 10);
+    .slice(0, 15);
 
   list.innerHTML = '';
   if (items.length === 0) {
