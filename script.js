@@ -690,9 +690,8 @@ function attachCardHandlers(card) {
     if (card.classList.contains('card-mini')) {
       // card da sidebar → abre NOTAS DO MOTORISTA (com paste de imagem/texto)
       openMotorista(card.dataset.id);
-    } else {
-      openDetail(card.dataset.id);
     }
+    // card-full do board nao abre mais detail panel (user pediu pra remover)
   });
   // duplo-clique no card-mini finaliza o trabalho (some pra sempre)
   card.addEventListener('dblclick', (e) => {
@@ -775,59 +774,10 @@ function cssEscape(s) {
 
 /* ---------- 10. DETAIL PANEL ------------------------------------------- */
 
-function openDetail(id) {
-  const rec = RECORDS.get(id);
-  if (!rec) return;
-  activeDetailId = id;
-
-  const contato = rec.contato || '';
-  let line1 = contato, line2 = '';
-  const parts = contato.split(/\s+/).filter(Boolean);
-  if (parts.length > 1) { line1 = parts[0]; line2 = parts.slice(1).join(' '); }
-  if (!contato) { line1 = rec.projeto; line2 = ''; }
-
-  const dateHTML = buildDateHTML(rec.date);
-
-  // bloco de datas no detalhe: painel (-2 d.u.) e cliente original (se diferente)
-  let dateBlock = '';
-  if (rec.date) {
-    const dPainel = formatDate(rec.date);
-    let html = `<div class="detail-date-label">PAINEL</div>
-                <div class="detail-date-val">${dPainel.day} ${dPainel.month}</div>`;
-    if (rec.dateCliente) {
-      const dCli = formatDate(rec.dateCliente);
-      const igual = dCli.day === dPainel.day && dCli.month === dPainel.month;
-      if (!igual) {
-        html += `<div class="detail-date-label" style="margin-top:6px">CLIENTE</div>
-                 <div class="detail-date-val detail-date-cliente">${dCli.day} ${dCli.month}</div>`;
-      }
-    }
-    dateBlock = html;
-  }
-
-  $detailContent.innerHTML = `
-    <div class="detail-text">
-      <div class="detail-name">${escapeHTML(line1)}</div>
-      ${line2 ? `<div class="detail-name">${escapeHTML(line2)}</div>` : ''}
-      <div class="detail-contact-label">CONTATO</div>
-      <div class="detail-contact">${escapeHTML(contato || '—')}</div>
-    </div>
-    <div class="detail-mini">
-      <div class="detail-mini-inner">
-        <div class="detail-mini-name">${escapeHTML(rec.projetoFull || rec.projeto)}</div>
-        <div class="detail-mini-divider"></div>
-        <div class="detail-mini-date${rec.date ? '' : ' is-empty'}">${dateHTML}</div>
-      </div>
-      ${dateBlock ? `<div class="detail-dates">${dateBlock}</div>` : ''}
-    </div>
-  `;
-  $detail.classList.add('active');
-}
-
-function closeDetail() {
-  activeDetailId = null;
-  $detail.classList.remove('active');
-}
+// openDetail/closeDetail: detail panel removido — funcoes mantidas como no-op
+// pra nao quebrar referencias antigas (renderAll, applyRemoteState, cross-tab sync)
+function openDetail(_id) { /* detail panel desativado */ }
+function closeDetail()   { activeDetailId = null; }
 
 /* ---------- MODAL NOTAS DO MOTORISTA ---------------------------------
  * Aberto ao clicar num card da sidebar.
@@ -1106,8 +1056,7 @@ function checkLunchOverlay() {
   if (!shouldShow && isVisible)  overlay.setAttribute('hidden', '');
 }
 
-// inicia o ciclo de verificação (a cada 30s + um check imediato)
-setInterval(checkLunchOverlay, 30000);
+// (setInterval do checkLunchOverlay agora vive só dentro de startAllRefreshers)
 
 function updateStamp() {
   if (!$stamp) return;
@@ -1147,19 +1096,22 @@ async function checkForNewBuild() {
   } catch (_) {}
 }
 
+let _refreshersStarted = false;
 function startAllRefreshers() {
-  // 30s: check rápido
+  if (_refreshersStarted) return;   // GUARD: nao recriar setInterval em loop
+  _refreshersStarted = true;
+  // 30s: check rapido
   setInterval(async () => { await loadData(true); }, QUICK_REFRESH_MS);
-  // 5min: hard refresh (força ignorar cache)
+  // 5min: hard refresh (forca ignorar cache)
   setInterval(async () => {
     lastSignature = '';
     await loadData(true);
   }, FULL_REFRESH_MS);
   // 10s: pull do state compartilhado
   setInterval(pullRemoteState, STATE_PULL_MS);
-  // verifica overlay BORA ALMOÇAR a cada 30s
+  // verifica overlay BORA ALMOCAR a cada 30s
   setInterval(checkLunchOverlay, 30000);
-  // 60s: verifica se há nova build (auto-reload)
+  // 60s: verifica se ha nova build (auto-reload)
   setInterval(checkForNewBuild, 60000);
 }
 
