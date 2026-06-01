@@ -634,19 +634,20 @@ function buildMiniNoteTag(noteHTML, id) {
   const tag = document.createElement('div');
   tag.className = 'mini-note';
   tag.dataset.id = id || '';
+  tag.title = 'Duplo clique pra apagar';
   tag.innerHTML = `
     <div class="mini-note-label">
-      <span>NOTAS PARA O MOTORISTA</span>
-      <button class="mini-note-close" title="Apagar nota">×</button>
+      <span>NOTAS PARA O MOTORISTA · 2× pra apagar</span>
     </div>
     <div class="mini-note-body">${noteHTML}</div>
   `;
-  const closeBtn = tag.querySelector('.mini-note-close');
-  closeBtn.addEventListener('click', (e) => {
+  // duplo clique na etiqueta inteira → confirma e apaga
+  tag.addEventListener('dblclick', (e) => {
     e.stopPropagation();
     e.preventDefault();
     const cardId = tag.dataset.id || tag.closest('.mini-wrap')?.dataset.id;
     if (!cardId) return;
+    if (!confirm('Apagar essa nota?')) return;
     clearNoteFor(cardId);
     refreshMiniNoteTag(cardId, '');
     if (activeMotoristaId === cardId) {
@@ -824,10 +825,13 @@ function closeDetail() {
  * Conteúdo salvo em LS_NOTES_KEY por id do card (compartilha com o detail).
  */
 let activeMotoristaId = null;
+let motoristaLoading  = false;     // flag pra evitar salvar durante openMotorista
 
 function openMotorista(id) {
   const rec = RECORDS.get(id);
   if (!rec) return;
+  // bloqueia listeners até o conteúdo carregar
+  motoristaLoading = true;
   activeMotoristaId = id;
   const modal   = document.getElementById('motorista-modal');
   const content = document.getElementById('motorista-content');
@@ -836,7 +840,10 @@ function openMotorista(id) {
   content.innerHTML = getNoteFor(id) || '';
   modal.removeAttribute('hidden');
   positionMotorista(id);
-  setTimeout(() => content.focus(), 30);
+  setTimeout(() => {
+    content.focus();
+    motoristaLoading = false;
+  }, 150);
 }
 
 function positionMotorista(id) {
@@ -959,7 +966,7 @@ function setupMotoristaModal() {
   // CTRL+V — captura imagem ou texto, salva como HTML em LS_NOTES_KEY
   content.addEventListener('paste', async (e) => {
     e.preventDefault();
-    if (!activeMotoristaId) return;
+    if (!activeMotoristaId || motoristaLoading) return;
     const clip = e.clipboardData;
     // imagem?
     for (const item of clip.items || []) {
@@ -985,9 +992,10 @@ function setupMotoristaModal() {
   // editar manualmente também salva (debounced)
   let saveTimer = null;
   content.addEventListener('input', () => {
-    if (!activeMotoristaId) return;
+    if (!activeMotoristaId || motoristaLoading) return;
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
+      if (!activeMotoristaId || motoristaLoading) return;
       saveNoteFor(activeMotoristaId, content.innerHTML);
       refreshMiniNoteTag(activeMotoristaId, content.innerHTML);
     }, 350);
