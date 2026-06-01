@@ -57,16 +57,17 @@ function doGet(e) {
   }
 
   // ---- default: CSV consolidado das abas mensais ---------------------
+  // NAO filtra por mes corrente: traz TODAS as abas mensais (a partir do
+  // TORUN de cada). Trabalhos so saem do painel quando o usuario despachar
+  // manualmente (duplo clique no card-mini). Esse comportamento eh espelhado
+  // no front em filterAndBuildRecords().
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheets = ss.getSheets();
-  const now = new Date();
-  const minMonths = now.getFullYear() * 12 + now.getMonth();
   const monthSheets = [];
   for (const sheet of sheets) {
     const parsed = parseAbaName(sheet.getName());
     if (!parsed) continue;
     const abaMonths = parsed.ano * 12 + parsed.mes;
-    if (abaMonths < minMonths) continue;
     monthSheets.push({ sheet, parsed, abaMonths });
   }
   monthSheets.sort((a, b) => a.abaMonths - b.abaMonths);

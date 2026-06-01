@@ -459,7 +459,8 @@ const $stamp   = document.getElementById('refresh-stamp');
 
 function renderAll() {
   [...$board.querySelectorAll('.card')].forEach(n => n.remove());
-  [...$sidebarInner.querySelectorAll('.card-mini')].forEach(n => n.remove());
+  // limpa wrappers da sidebar (cada mini-wrap segura um .card-mini + a etiqueta de nota)
+  [...$sidebarInner.querySelectorAll('.mini-wrap, .card-mini')].forEach(n => n.remove());
 
   for (const [id, rec] of RECORDS) {
     const loc = LOCATIONS.get(id);
@@ -1003,12 +1004,16 @@ function setupMotoristaModal() {
 }
 
 // atualiza/cria/remove a etiqueta-nota abaixo do card-mini correspondente
+// (varre todos os wraps com esse id por garantia — em teoria so existe um,
+//  mas se algo no DOM ficar duplicado a gente apaga em todos)
 function refreshMiniNoteTag(id, html) {
-  const wrap = document.querySelector(`.mini-wrap[data-id="${cssEscape(id)}"]`);
-  if (!wrap) return;
-  const existing = wrap.querySelector('.mini-note');
-  if (existing) existing.remove();
-  if (html && html.trim()) wrap.appendChild(buildMiniNoteTag(html, id));
+  const wraps = document.querySelectorAll(`.mini-wrap[data-id="${cssEscape(id)}"]`);
+  if (!wraps.length) return;
+  wraps.forEach(wrap => {
+    const existing = wrap.querySelector('.mini-note');
+    if (existing) existing.remove();
+    if (html && html.trim()) wrap.appendChild(buildMiniNoteTag(html, id));
+  });
   if (activeMotoristaId === id) positionMotorista(id);
 }
 
