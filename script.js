@@ -316,11 +316,8 @@ function filterAndBuildRecords(rows) {
   );
   const slice = torunIdx >= 0 ? rows.slice(torunIdx) : rows;
 
-  // 2) filtro por MÊS CORRENTE: data >= primeiro dia do mês atual.
-  //    Cards sem data passam (são novos rascunhos).
-  const now = new Date();
-  const minYear  = now.getFullYear();
-  const minMonth = now.getMonth();
+  // 2) NÃO descarta mais por mês — só some do painel quando o usuário
+  //    despachar manualmente (duplo clique no card da sidebar).
 
   const finished = loadFinishedSet();
   const out = [];
@@ -333,12 +330,6 @@ function filterAndBuildRecords(rows) {
     const dateCliente = prazoRaw ? parseDate(prazoRaw) : null;
     // recua 2 dias úteis pra dar margem de produção
     const date = dateCliente ? shiftBusinessDays(dateCliente, -BUSINESS_DAYS_BACK) : null;
-    // se TEM data ajustada: precisa ser do mês corrente em diante. Sem data passa.
-    if (date) {
-      const dateMonths = date.year * 12 + date.month;
-      const minMonths  = minYear * 12 + minMonth;
-      if (dateMonths < minMonths) continue;
-    }
 
     const slug = slugify(projeto);
     const count = used.get(slug) || 0;
