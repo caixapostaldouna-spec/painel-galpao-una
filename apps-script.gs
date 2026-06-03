@@ -49,10 +49,13 @@ function doGet(e) {
   // ---- endpoint state: retorna JSON do estado compartilhado ----------
   if (action === 'state') {
     return jsonOutput({
-      locations: JSON.parse(PROPS.getProperty('state_locations') || '{}'),
-      finished:  JSON.parse(PROPS.getProperty('state_finished')  || '[]'),
-      notes:     JSON.parse(PROPS.getProperty('state_notes')     || '{}'),
-      updatedAt: Number(PROPS.getProperty('state_updatedAt')     || 0)
+      locations:     JSON.parse(PROPS.getProperty('state_locations')     || '{}'),
+      finished:      JSON.parse(PROPS.getProperty('state_finished')      || '[]'),
+      notes:         JSON.parse(PROPS.getProperty('state_notes')         || '{}'),
+      dateOverrides: JSON.parse(PROPS.getProperty('state_dateOverrides') || '{}'),
+      manualOrder:   JSON.parse(PROPS.getProperty('state_manualOrder')   || '{}'),
+      sidebarOrder:  JSON.parse(PROPS.getProperty('state_sidebarOrder')  || '{}'),
+      updatedAt:     Number(PROPS.getProperty('state_updatedAt')         || 0)
     });
   }
 
@@ -112,9 +115,12 @@ function doGet(e) {
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
-    if (body.locations) PROPS.setProperty('state_locations', JSON.stringify(body.locations));
-    if (body.finished)  PROPS.setProperty('state_finished',  JSON.stringify(body.finished));
-    if (body.notes)     PROPS.setProperty('state_notes',     JSON.stringify(body.notes));
+    if (body.locations)      PROPS.setProperty('state_locations',     JSON.stringify(body.locations));
+    if (body.finished)       PROPS.setProperty('state_finished',      JSON.stringify(body.finished));
+    if (body.notes)          PROPS.setProperty('state_notes',         JSON.stringify(body.notes));
+    if (body.dateOverrides)  PROPS.setProperty('state_dateOverrides', JSON.stringify(body.dateOverrides));
+    if (body.manualOrder)    PROPS.setProperty('state_manualOrder',   JSON.stringify(body.manualOrder));
+    if (body.sidebarOrder)   PROPS.setProperty('state_sidebarOrder',  JSON.stringify(body.sidebarOrder));
     PROPS.setProperty('state_updatedAt', String(Date.now()));
     return jsonOutput({ ok: true });
   } catch (err) {

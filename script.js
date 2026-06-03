@@ -65,6 +65,7 @@ const LS_NOTES_KEY    = 'painel-galpao-notes-v1';
 const LS_THEME_KEY    = 'painel-galpao-theme-v1';
 const LS_DATE_OVR_KEY = 'painel-galpao-date-overrides-v1';
 const LS_ORDER_KEY    = 'painel-galpao-order-v1';
+const LS_SIDE_ORDER_KEY = 'painel-galpao-sidebar-order-v1';
 
 // SVG silhueta camiseta usada no quadrado do fornecedor
 const TSHIRT_SVG = `
@@ -87,6 +88,10 @@ const DATE_OVERRIDES = new Map();
 // Map<id, number> — ordem manual definida via drag/drop (cards com order vao
 // PRIMEIRO no board, ordenados por esse numero; depois vem os por data)
 const MANUAL_ORDER = new Map();
+
+// Map<id, number> — ordem manual na SIDEBAR (prontos). Menor numero = mais no topo.
+// Cards COM nota sobem pro topo automaticamente (recebem numero baixo).
+const SIDEBAR_ORDER = new Map();
 
 let activeDetailId = null;
 let refreshTimer  = null;
@@ -502,6 +507,47 @@ function persistManualOrder() {
   } catch (_) {}
 }
 
+/* -- SIDEBAR_ORDER (ordem manual na sidebar / prontos) ----------------- */
+function loadSidebarOrder() {
+  try {
+    const raw = localStorage.getItem(LS_SIDE_ORDER_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    SIDEBAR_ORDER.clear();
+    for (const [k, v] of Object.entries(obj || {})) {
+      if (Number.isFinite(v)) SIDEBAR_ORDER.set(k, Number(v));
+    }
+  } catch (_) {}
+}
+function persistSidebarOrder() {
+  try {
+    localStorage.setItem(LS_SIDE_ORDER_KEY, JSON.stringify(Object.fromEntries(SIDEBAR_ORDER)));
+  } catch (_) {}
+}
+// joga um card pro topo da sidebar (numero menor que todos os atuais)
+function bumpSidebarToTop(id) {
+  let min = 0;
+  for (const v of SIDEBAR_ORDER.values()) if (v < min) min = v;
+  SIDEBAR_ORDER.set(id, min - 1);
+  persistSidebarOrder();
+  schedulePushRemote();
+}
+// reordena a sidebar inteira pela ordem atual do DOM (1..N)
+function reorderSidebarBeforeCard(draggedId, targetId) {
+  if (draggedId === targetId) return;
+  const orderedIds = [...$sidebarInner.querySelectorAll('.mini-wrap[data-id]')].map(w => w.dataset.id);
+  const fromIdx = orderedIds.indexOf(draggedId);
+  if (fromIdx < 0) return;
+  orderedIds.splice(fromIdx, 1);
+  const toIdx = orderedIds.indexOf(targetId);
+  if (toIdx < 0) return;
+  orderedIds.splice(toIdx, 0, draggedId);
+  orderedIds.forEach((id, i) => SIDEBAR_ORDER.set(id, i + 1));
+  persistSidebarOrder();
+  schedulePushRemote();
+  renderAll();
+}
+
 /* ---------- 8. RENDER --------------------------------------------------- */
 
 const $board   = document.getElementById('board');
@@ -539,12 +585,20 @@ function renderAll() {
   });
   for (const rec of boardRecs) $board.appendChild(buildCardFull(rec));
 
-  // SIDEBAR: cards COM NOTA vao no fim (resto na ordem que chegou)
+  // SIDEBAR (prontos):
+  //   1) cards com ORDEM MANUAL (SIDEBAR_ORDER) vao primeiro, por numero (topo).
+  //   2) sem ordem manual: cards COM NOTA sobem pro topo (relevância: motoboy
+  //      chegando), depois os sem nota na ordem que chegaram.
   const notesMap = loadNotesMap();
   sidebarRecs.sort((a, b) => {
-    const aHas = notesMap.has(a.id) ? 1 : 0;
-    const bHas = notesMap.has(b.id) ? 1 : 0;
-    return aHas - bHas;  // sem nota primeiro, com nota no fim
+    const aO = SIDEBAR_ORDER.has(a.id);
+    const bO = SIDEBAR_ORDER.has(b.id);
+    if (aO && bO) return SIDEBAR_ORDER.get(a.id) - SIDEBAR_ORDER.get(b.id);
+    if (aO) return -1;
+    if (bO) return 1;
+    const aN = notesMap.has(a.id) ? 0 : 1;   // nota = 0 → sobe
+    const bN = notesMap.has(b.id) ? 0 : 1;
+    return aN - bN;
   });
   for (const rec of sidebarRecs) $sidebarInner.appendChild(buildCardMini(rec));
 
@@ -793,12 +847,8 @@ function buildMiniNoteTag(noteHTML, id) {
   tag.className = 'mini-note';
   tag.dataset.id = id || '';
   tag.title = 'Duplo clique pra apagar';
-  tag.innerHTML = `
-    <div class="mini-note-label">
-      <span>NOTAS PARA O MOTORISTA · 2× pra apagar</span>
-    </div>
-    <div class="mini-note-body">${noteHTML}</div>
-  `;
+  // sem rótulo de texto — só o corpo da nota, pra aproveitar todo o espaço
+  tag.innerHTML = `<div class="mini-note-body">${noteHTML}</div>`;
   // duplo clique na etiqueta inteira → confirma e apaga
   tag.addEventListener('dblclick', (e) => {
     e.stopPropagation();
@@ -860,6 +910,28 @@ function attachCardHandlers(card) {
       e.stopPropagation();
       reorderBeforeCard(draggedId, card.dataset.id);
     });
+  } else {
+    // CARD-MINI (sidebar / prontos): drop em cima de outro mini reordena
+    // (sobe/desce). So vale se o card arrastado ja estiver na sidebar.
+    card.addEventListener('dragover', (e) => {
+      if (!draggedId || draggedId === card.dataset.id) return;
+      if (LOCATIONS.get(draggedId) !== 'sidebar') return;  // board→sidebar deixa pro drop-zone
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      card.classList.add('drop-before');
+    });
+    card.addEventListener('dragleave', () => {
+      card.classList.remove('drop-before');
+    });
+    card.addEventListener('drop', (e) => {
+      card.classList.remove('drop-before');
+      if (!draggedId || draggedId === card.dataset.id) return;
+      if (LOCATIONS.get(draggedId) !== 'sidebar') return;
+      e.preventDefault();
+      e.stopPropagation();
+      reorderSidebarBeforeCard(draggedId, card.dataset.id);
+    });
   }
   card.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -885,6 +957,8 @@ function finishCard(id) {
   clearNoteFor(id);
   RECORDS.delete(id);
   LOCATIONS.delete(id);
+  if (SIDEBAR_ORDER.has(id)) { SIDEBAR_ORDER.delete(id); persistSidebarOrder(); }
+  if (MANUAL_ORDER.has(id))  { MANUAL_ORDER.delete(id);  persistManualOrder();  }
   persistLocations();
   document.querySelectorAll(`.mini-wrap[data-id="${cssEscape(id)}"], .card-mini[data-id="${cssEscape(id)}"], .card[data-id="${cssEscape(id)}"]`).forEach(n => n.remove());
   if (activeDetailId === id) closeDetail();
@@ -953,25 +1027,22 @@ function moveCard(id, target) {
   const rec = RECORDS.get(id);
   rec.date = computeDisplayDate(rec, target);
 
-  // quando sai do board pra sidebar, descarta a ordem manual desse card —
-  // se voltar pro board mais tarde ele entra de novo pela ordem por data.
+  // quando sai do board pra sidebar, descarta a ordem manual do board desse
+  // card — se voltar pro board mais tarde ele entra de novo pela ordem por data.
   if (target === 'sidebar' && MANUAL_ORDER.has(id)) {
     MANUAL_ORDER.delete(id);
     persistManualOrder();
   }
+  // quando sai da sidebar pro board, descarta a ordem manual da sidebar.
+  if (target === 'board' && SIDEBAR_ORDER.has(id)) {
+    SIDEBAR_ORDER.delete(id);
+    persistSidebarOrder();
+  }
 
   schedulePushRemote();
 
-  // sidebar: empilha no fim (ordem de quem chegou)
-  // board: re-renderiza tudo pra reordenar por data
-  if (target === 'sidebar') {
-    document
-      .querySelectorAll(`[data-id="${cssEscape(id)}"]`)
-      .forEach(n => n.remove());
-    $sidebarInner.appendChild(buildCardMini(rec));
-  } else {
-    renderAll();
-  }
+  // re-renderiza tudo (re-sorta board por data/ordem e sidebar por nota/ordem)
+  renderAll();
 }
 
 /* Calcula a data que deve aparecer no card baseado em:
@@ -1028,19 +1099,20 @@ function commitMotorista() {
   if (!activeMotoristaId) return;
   const id = activeMotoristaId;
   const content = document.getElementById('motorista-content');
+  let hasNote = false;
   if (content) {
     const html = content.innerHTML;
     if (html && html.trim()) {
       saveNoteFor(id, html);
-      refreshMiniNoteTag(id, html);
+      hasNote = true;
     }
   }
-  // desce o card pra parte de baixo da sidebar (apenas se ele estiver na sidebar)
-  const wrap = document.querySelector(`.mini-wrap[data-id="${cssEscape(id)}"]`);
-  if (wrap && $sidebarInner && $sidebarInner.contains(wrap)) {
-    $sidebarInner.appendChild(wrap);
+  // card com nota SOBE pro topo da sidebar (relevância: tem motoboy chegando)
+  if (hasNote && LOCATIONS.get(id) === 'sidebar') {
+    bumpSidebarToTop(id);
   }
   closeMotorista();
+  renderAll();   // re-sorta e redesenha (etiqueta + posição no topo)
 }
 
 function closeMotorista() {
@@ -1414,6 +1486,7 @@ function init() {
   } catch (_) {}
   loadDateOverrides();
   loadManualOrder();
+  loadSidebarOrder();
 
   setupCrossTabSync();
   checkLunchOverlay();   // mostra "BORA ALMOÇAR" se já é a hora
@@ -1448,6 +1521,7 @@ async function pushRemoteState() {
         notes:          Object.fromEntries(loadNotesMap()),
         dateOverrides:  Object.fromEntries(DATE_OVERRIDES),
         manualOrder:    Object.fromEntries(MANUAL_ORDER),
+        sidebarOrder:   Object.fromEntries(SIDEBAR_ORDER),
       })
     });
   } catch (err) {
@@ -1501,6 +1575,13 @@ function applyRemoteState(data) {
       if (Number.isFinite(v)) MANUAL_ORDER.set(k, Number(v));
     }
     persistManualOrder();
+  }
+  if (data.sidebarOrder && typeof data.sidebarOrder === 'object') {
+    SIDEBAR_ORDER.clear();
+    for (const [k,v] of Object.entries(data.sidebarOrder)) {
+      if (Number.isFinite(v)) SIDEBAR_ORDER.set(k, Number(v));
+    }
+    persistSidebarOrder();
   }
   // recalcula datas dos records com overrides + location
   for (const [id, rec] of RECORDS) {

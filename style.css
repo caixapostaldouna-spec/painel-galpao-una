@@ -156,6 +156,10 @@ body {
     var(--shadow-card);
   transform: translateX(2px);
 }
+/* na sidebar o card cai ACIMA → barra dourada no topo */
+.card-mini.drop-before {
+  box-shadow: 0 -3px 0 var(--gold);
+}
 
 .board.drop-active {
   outline: 2px dashed var(--gold);
@@ -583,21 +587,22 @@ body {
 .mini-note-body {
   background: #ffffff;
   border-radius: 3px;
-  padding: 6px 8px;
+  padding: 7px 9px;
   font-family: 'Oswald', sans-serif;
-  font-size: 11px;
-  line-height: 1.25;
-  color: #1a1a1a;
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.2;
+  color: #111111;
   word-break: break-word;
-  max-height: 90px;
+  max-height: 120px;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
 }
 .mini-note-body img {
   max-width: 100%;
-  max-height: 80px;
+  max-height: 110px;
   display: block;
   margin: 0 auto;
   border-radius: 2px;
