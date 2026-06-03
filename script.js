@@ -63,6 +63,8 @@ const LS_KEY          = 'painel-galpao-locs-v1';
 const LS_FINISHED_KEY = 'painel-galpao-finished-v1';
 const LS_NOTES_KEY    = 'painel-galpao-notes-v1';
 const LS_THEME_KEY    = 'painel-galpao-theme-v1';
+const LS_DATE_OVR_KEY = 'painel-galpao-date-overrides-v1';
+const LS_ORDER_KEY    = 'painel-galpao-order-v1';
 
 // SVG silhueta camiseta usada no quadrado do fornecedor
 const TSHIRT_SVG = `
@@ -77,6 +79,14 @@ const RECORDS = new Map();
 
 // Map<id, "board" | "sidebar"> — onde cada card está agora
 const LOCATIONS = new Map();
+
+// Map<id, {day, month, year}> — datas editadas manualmente pelo usuario
+// (sobrescreve a data calculada da planilha; persiste local + remoto)
+const DATE_OVERRIDES = new Map();
+
+// Map<id, number> — ordem manual definida via drag/drop (cards com order vao
+// PRIMEIRO no board, ordenados por esse numero; depois vem os por data)
+const MANUAL_ORDER = new Map();
 
 let activeDetailId = null;
 let refreshTimer  = null;
@@ -300,6 +310,8 @@ async function loadData(silent = false) {
     RECORDS.set(r.id, r);
     const loc = prevLocs.get(r.id);
     LOCATIONS.set(r.id, loc === 'sidebar' ? 'sidebar' : 'board');
+    // recalcula a data exibida considerando location + override manual
+    r.date = computeDisplayDate(r, LOCATIONS.get(r.id));
   }
   persistLocations();
   renderAll();
@@ -448,6 +460,48 @@ function clearNoteFor(id) {
   try { localStorage.setItem(LS_NOTES_KEY, JSON.stringify(Object.fromEntries(m))); } catch(_){}
 }
 
+/* -- DATE_OVERRIDES (datas editadas manualmente) ----------------------- */
+function loadDateOverrides() {
+  try {
+    const raw = localStorage.getItem(LS_DATE_OVR_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    DATE_OVERRIDES.clear();
+    for (const [k, v] of Object.entries(obj || {})) {
+      if (v && typeof v === 'object' && Number.isInteger(v.day)) DATE_OVERRIDES.set(k, v);
+    }
+  } catch (_) {}
+}
+function persistDateOverrides() {
+  try {
+    localStorage.setItem(LS_DATE_OVR_KEY, JSON.stringify(Object.fromEntries(DATE_OVERRIDES)));
+  } catch (_) {}
+}
+function setDateOverride(id, dateObj) {
+  if (dateObj) DATE_OVERRIDES.set(id, dateObj);
+  else DATE_OVERRIDES.delete(id);
+  persistDateOverrides();
+  schedulePushRemote();
+}
+
+/* -- MANUAL_ORDER (ordem manual via drag entre cards) ------------------ */
+function loadManualOrder() {
+  try {
+    const raw = localStorage.getItem(LS_ORDER_KEY);
+    if (!raw) return;
+    const obj = JSON.parse(raw);
+    MANUAL_ORDER.clear();
+    for (const [k, v] of Object.entries(obj || {})) {
+      if (Number.isFinite(v)) MANUAL_ORDER.set(k, Number(v));
+    }
+  } catch (_) {}
+}
+function persistManualOrder() {
+  try {
+    localStorage.setItem(LS_ORDER_KEY, JSON.stringify(Object.fromEntries(MANUAL_ORDER)));
+  } catch (_) {}
+}
+
 /* ---------- 8. RENDER --------------------------------------------------- */
 
 const $board   = document.getElementById('board');
@@ -462,13 +516,30 @@ function renderAll() {
   // limpa wrappers da sidebar (cada mini-wrap segura um .card-mini + a etiqueta de nota)
   [...$sidebarInner.querySelectorAll('.mini-wrap, .card-mini')].forEach(n => n.remove());
 
-  // separa em board / sidebar, ordena sidebar deixando cards-COM-NOTA no fim
+  // separa em board / sidebar
+  const boardRecs = [];
   const sidebarRecs = [];
   for (const [id, rec] of RECORDS) {
     const loc = LOCATIONS.get(id);
     if (loc === 'sidebar') sidebarRecs.push(rec);
-    else                   $board.appendChild(buildCardFull(rec));
+    else                   boardRecs.push(rec);
   }
+
+  // BOARD: cards com MANUAL_ORDER vao primeiro (na ordem definida pelo user).
+  // Depois, os sem ordem manual seguem por data crescente (como antes).
+  boardRecs.sort((a, b) => {
+    const aHasOrder = MANUAL_ORDER.has(a.id);
+    const bHasOrder = MANUAL_ORDER.has(b.id);
+    if (aHasOrder && bHasOrder)  return MANUAL_ORDER.get(a.id) - MANUAL_ORDER.get(b.id);
+    if (aHasOrder && !bHasOrder) return -1;
+    if (!aHasOrder && bHasOrder) return 1;
+    const aT = a.date ? a.date.year * 10000 + a.date.month * 100 + a.date.day : Infinity;
+    const bT = b.date ? b.date.year * 10000 + b.date.month * 100 + b.date.day : Infinity;
+    return aT - bT;
+  });
+  for (const rec of boardRecs) $board.appendChild(buildCardFull(rec));
+
+  // SIDEBAR: cards COM NOTA vao no fim (resto na ordem que chegou)
   const notesMap = loadNotesMap();
   sidebarRecs.sort((a, b) => {
     const aHas = notesMap.has(a.id) ? 1 : 0;
@@ -548,6 +619,81 @@ function buildDateHTML(date) {
   return `${d.day}<span class="sep">|</span><span class="month">${d.month}</span>`;
 }
 
+/* Habilita edicao inline da data do card. Click abre input; Enter ou blur
+ * comita; Esc cancela. Limpar e dar Enter remove o override (volta pra data
+ * calculada da planilha). */
+function enableDateEditing(dateEl, rec) {
+  dateEl.classList.add('is-editable');
+  dateEl.title = 'Clique pra editar · Enter salva · vazio + Enter volta pra planilha';
+  dateEl.addEventListener('mousedown', (e) => {
+    // impede dragstart quando user vai editar a data
+    e.stopPropagation();
+  });
+  dateEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    openDateEditor(dateEl, rec);
+  });
+}
+
+function openDateEditor(dateEl, rec) {
+  if (dateEl.querySelector('input.date-inline-input')) return; // ja em edicao
+  const cur = rec.date
+    ? `${String(rec.date.day).padStart(2,'0')}/${String(rec.date.month + 1).padStart(2,'0')}`
+    : '';
+  const originalHTML = dateEl.innerHTML;
+  const originalEmpty = dateEl.classList.contains('is-empty');
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'date-inline-input';
+  input.value = cur;
+  input.placeholder = 'DD/MM';
+  input.maxLength = 10;
+
+  dateEl.innerHTML = '';
+  dateEl.classList.remove('is-empty');
+  dateEl.appendChild(input);
+  // selecionar tudo facilita digitar nova data
+  setTimeout(() => { input.focus(); input.select(); }, 0);
+
+  let committed = false;
+  const restore = () => {
+    dateEl.innerHTML = originalHTML;
+    if (originalEmpty) dateEl.classList.add('is-empty');
+  };
+  const commit = () => {
+    if (committed) return;
+    committed = true;
+    const txt = input.value.trim();
+    if (!txt) {
+      // limpa override → volta pra data calculada da planilha
+      setDateOverride(rec.id, null);
+      rec.date = computeDisplayDate(rec, LOCATIONS.get(rec.id) || 'board');
+      renderAll();
+      return;
+    }
+    const parsed = parseDate(txt);
+    if (!parsed) {
+      // invalido: reverte e nao salva
+      restore();
+      return;
+    }
+    setDateOverride(rec.id, parsed);
+    rec.date = parsed;
+    renderAll();
+  };
+
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { committed = true; restore(); }
+  });
+  input.addEventListener('blur', commit);
+  // bloqueia drag do card enquanto edita
+  input.addEventListener('dragstart', (e) => e.preventDefault());
+}
+
 function buildCardFull(rec) {
   const card = document.createElement('div');
   const urg = urgencyFor(rec.date);
@@ -576,6 +722,7 @@ function buildCardFull(rec) {
   const date = document.createElement('div');
   date.className = 'card-date' + (rec.date ? '' : ' is-empty');
   date.innerHTML = buildDateHTML(rec.date);
+  enableDateEditing(date, rec);
 
   const tags = document.createElement('div');
   tags.className = 'card-tags';
@@ -627,6 +774,7 @@ function buildCardMini(rec) {
   const date = document.createElement('div');
   date.className = 'mini-date' + (rec.date ? '' : ' is-empty');
   date.innerHTML = buildDateHTML(rec.date);
+  enableDateEditing(date, rec);
 
   body.append(name, div, date);
   card.append(bar, body);
@@ -683,8 +831,36 @@ function attachCardHandlers(card) {
     card.classList.remove('dragging');
     $board.classList.remove('drop-active');
     $sidebar.classList.remove('drop-active');
+    document.querySelectorAll('.card.drop-before').forEach(n => n.classList.remove('drop-before'));
     draggedId = null;
   });
+
+  // Drop em cima de outro card no BOARD: reordena (insere o draggado ANTES deste).
+  // So funciona pra card-full do board (sidebar tem outra logica de ordem).
+  if (!card.classList.contains('card-mini')) {
+    card.addEventListener('dragover', (e) => {
+      if (!draggedId || draggedId === card.dataset.id) return;
+      const dragRec = RECORDS.get(draggedId);
+      if (!dragRec) return;
+      // so reordena se ambos estao no board
+      if (LOCATIONS.get(draggedId) !== 'board') return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      card.classList.add('drop-before');
+    });
+    card.addEventListener('dragleave', () => {
+      card.classList.remove('drop-before');
+    });
+    card.addEventListener('drop', (e) => {
+      card.classList.remove('drop-before');
+      if (!draggedId || draggedId === card.dataset.id) return;
+      if (LOCATIONS.get(draggedId) !== 'board') return;
+      e.preventDefault();
+      e.stopPropagation();
+      reorderBeforeCard(draggedId, card.dataset.id);
+    });
+  }
   card.addEventListener('click', (e) => {
     e.stopPropagation();
     if (card.classList.contains('card-mini')) {
@@ -745,12 +921,45 @@ function setupDropZone(zoneEl, target) {
   });
 }
 
+/* Reordena dois cards no board: insere `draggedId` ANTES de `targetId`.
+ * Atribui MANUAL_ORDER pra todos os cards do board com base na ordem
+ * resultante no DOM (sao numeros inteiros sequenciais 1..N). */
+function reorderBeforeCard(draggedId, targetId) {
+  if (draggedId === targetId) return;
+  // Pega a ordem atual dos cards do board no DOM
+  const orderedIds = [...$board.querySelectorAll('.card[data-id]')].map(c => c.dataset.id);
+  const fromIdx = orderedIds.indexOf(draggedId);
+  const toIdx   = orderedIds.indexOf(targetId);
+  if (fromIdx < 0 || toIdx < 0) return;
+  // remove e re-insere antes do target
+  orderedIds.splice(fromIdx, 1);
+  const newTargetIdx = orderedIds.indexOf(targetId);
+  orderedIds.splice(newTargetIdx, 0, draggedId);
+  // atualiza MANUAL_ORDER pra TODOS os cards do board (preserva visivel)
+  orderedIds.forEach((id, i) => MANUAL_ORDER.set(id, i + 1));
+  persistManualOrder();
+  schedulePushRemote();
+  renderAll();
+}
+
 function moveCard(id, target) {
   if (!RECORDS.has(id)) return;
   const current = LOCATIONS.get(id);
   if (current === target) return;
   LOCATIONS.set(id, target);
   persistLocations();
+
+  // ajusta a data exibida pelo location, respeitando override manual se houver
+  const rec = RECORDS.get(id);
+  rec.date = computeDisplayDate(rec, target);
+
+  // quando sai do board pra sidebar, descarta a ordem manual desse card —
+  // se voltar pro board mais tarde ele entra de novo pela ordem por data.
+  if (target === 'sidebar' && MANUAL_ORDER.has(id)) {
+    MANUAL_ORDER.delete(id);
+    persistManualOrder();
+  }
+
   schedulePushRemote();
 
   // sidebar: empilha no fim (ordem de quem chegou)
@@ -759,13 +968,21 @@ function moveCard(id, target) {
     document
       .querySelectorAll(`[data-id="${cssEscape(id)}"]`)
       .forEach(n => n.remove());
-    const rec = RECORDS.get(id);
     $sidebarInner.appendChild(buildCardMini(rec));
   } else {
     renderAll();
   }
+}
 
-  if (activeDetailId === id) openDetail(id);
+/* Calcula a data que deve aparecer no card baseado em:
+ *   - override manual (DATE_OVERRIDES) tem prioridade
+ *   - sidebar  → data real do cliente (sem -2 d.u.)
+ *   - board    → data com -BUSINESS_DAYS_BACK dias uteis (margem de producao) */
+function computeDisplayDate(rec, location) {
+  if (DATE_OVERRIDES.has(rec.id)) return DATE_OVERRIDES.get(rec.id);
+  if (!rec.dateCliente) return null;
+  if (location === 'sidebar') return rec.dateCliente;
+  return shiftBusinessDays(rec.dateCliente, -BUSINESS_DAYS_BACK);
 }
 
 function cssEscape(s) {
@@ -1187,7 +1404,7 @@ function init() {
   document.getElementById('dispatched-close')
     .addEventListener('click', closeDispatched);
 
-  // restaurar LOCATIONS do localStorage antes do primeiro load
+  // restaurar LOCATIONS / overrides / ordem manual do localStorage antes do primeiro load
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
@@ -1195,6 +1412,8 @@ function init() {
       if (Array.isArray(arr)) for (const [k,v] of arr) LOCATIONS.set(k, v);
     }
   } catch (_) {}
+  loadDateOverrides();
+  loadManualOrder();
 
   setupCrossTabSync();
   checkLunchOverlay();   // mostra "BORA ALMOÇAR" se já é a hora
@@ -1224,9 +1443,11 @@ async function pushRemoteState() {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
-        locations: Object.fromEntries(LOCATIONS),
-        finished:  loadFinishedList(),
-        notes:     Object.fromEntries(loadNotesMap()),
+        locations:      Object.fromEntries(LOCATIONS),
+        finished:       loadFinishedList(),
+        notes:          Object.fromEntries(loadNotesMap()),
+        dateOverrides:  Object.fromEntries(DATE_OVERRIDES),
+        manualOrder:    Object.fromEntries(MANUAL_ORDER),
       })
     });
   } catch (err) {
@@ -1267,8 +1488,25 @@ function applyRemoteState(data) {
   if (data.notes) {
     try { localStorage.setItem(LS_NOTES_KEY, JSON.stringify(data.notes)); } catch(_){}
   }
+  if (data.dateOverrides && typeof data.dateOverrides === 'object') {
+    DATE_OVERRIDES.clear();
+    for (const [k,v] of Object.entries(data.dateOverrides)) {
+      if (v && Number.isInteger(v.day)) DATE_OVERRIDES.set(k, v);
+    }
+    persistDateOverrides();
+  }
+  if (data.manualOrder && typeof data.manualOrder === 'object') {
+    MANUAL_ORDER.clear();
+    for (const [k,v] of Object.entries(data.manualOrder)) {
+      if (Number.isFinite(v)) MANUAL_ORDER.set(k, Number(v));
+    }
+    persistManualOrder();
+  }
+  // recalcula datas dos records com overrides + location
+  for (const [id, rec] of RECORDS) {
+    rec.date = computeDisplayDate(rec, LOCATIONS.get(id) || 'board');
+  }
   renderAll();
-  if (activeDetailId) openDetail(activeDetailId);
 }
 
 function setupCrossTabSync() {

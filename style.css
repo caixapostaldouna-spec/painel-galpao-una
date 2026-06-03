@@ -149,6 +149,14 @@ body {
 .board::-webkit-scrollbar-track { background: #0a0a0a; }
 .board::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 4px; }
 
+/* indicador visual de "vai cair antes deste card" quando drag-over */
+.card.drop-before {
+  box-shadow:
+    -3px 0 0 var(--gold),
+    var(--shadow-card);
+  transform: translateX(2px);
+}
+
 .board.drop-active {
   outline: 2px dashed var(--gold);
   outline-offset: -8px;
@@ -291,6 +299,34 @@ body {
 .detail-mini-date.is-empty {
   opacity: 0.55;
 }
+
+/* data editavel inline (click pra abrir input) */
+.card-date.is-editable,
+.mini-date.is-editable {
+  cursor: text;
+  border-radius: 3px;
+  transition: background 100ms ease;
+}
+.card-date.is-editable:hover,
+.mini-date.is-editable:hover {
+  background: rgba(255, 200, 0, 0.07);
+  outline: 1px dashed rgba(232,176,7,0.5);
+  outline-offset: 1px;
+}
+.date-inline-input {
+  font: inherit;
+  color: inherit;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid var(--gold);
+  border-radius: 3px;
+  padding: 0 4px;
+  width: 5.5em;
+  text-align: left;
+  outline: none;
+  letter-spacing: 0.04em;
+  caret-color: var(--gold);
+}
+.date-inline-input::placeholder { color: var(--gold-dim); opacity: 0.55; }
 .detail-dates {
   margin-top: 8px;
   padding-top: 6px;
