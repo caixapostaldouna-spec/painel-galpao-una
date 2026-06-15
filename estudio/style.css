@@ -189,17 +189,26 @@ small{ color:var(--muted); }
   .rail-btn{ min-width:62px; flex:none; padding:8px 4px; }
   .rail-btn .ico{ font-size:20px; }
 
-  /* painel vira gaveta lateral */
-  .panel{ display:none; position:fixed; top:0; left:0; width:86%; max-width:330px; height:100%; height:100dvh;
-    z-index:65; border-right:1px solid var(--line); box-shadow:var(--shadow); }
-  .panel.open{ display:block; }
-  .panel-close{ display:block; width:100%; padding:10px; margin-bottom:14px; border-radius:10px;
-    background:var(--surface); border:1px solid var(--line); font-weight:800; color:var(--ink-soft); }
+  /* painel vira "bottom sheet": sobe de baixo e deixa a camiseta visível */
+  .panel{ display:block; position:fixed; left:0; right:0; bottom:0; top:auto; width:100%;
+    height:auto; max-height:64vh; z-index:65; padding:16px 16px 22px;
+    border:none; border-top:1px solid var(--line); border-radius:20px 20px 0 0;
+    box-shadow:0 -12px 40px rgba(0,0,0,.18); transform:translateY(110%); transition:transform .25s; }
+  .panel.open{ transform:translateY(0); }
+  .panel-close{ display:block; width:100%; padding:11px; margin-bottom:14px; border-radius:10px;
+    background:var(--surface-2); border:1px solid var(--line); font-weight:800; color:var(--ink-soft); }
+
+  /* inspector também como bottom sheet */
+  .inspector{ position:fixed; left:0; right:0; bottom:0; top:auto; width:100%; height:auto; max-height:70vh;
+    border:none; border-top:1px solid var(--line); border-radius:20px 20px 0 0;
+    box-shadow:0 -12px 40px rgba(0,0,0,.18); transform:translateY(110%); }
+  .inspector.open{ transform:translateY(0); }
 
   .stage{ min-height:0; }
   .stage-toolbar{ margin-top:8px; padding:7px; }
   .mockup-wrap{ padding:6px; }
   .side-switch{ margin-bottom:10px; }
+  .mockup{ width:min(440px, 82vw); height:min(440px, 82vw); }
 }
 @media (max-width:420px){
   .brand-text strong{ font-size:0; }     /* só o losango em telas bem estreitas */

@@ -72,6 +72,7 @@ const state = {
   elements:{ front:[], back:[] }, selectedId:null, seq:1,
 };
 let activeTool = 'produto';
+let booted = false;   // evita abrir a gaveta do painel durante o carregamento
 const history = [];
 let historyIndex = -1;
 
@@ -415,7 +416,8 @@ function setTool(tool){
   activeTool=tool;
   $$('.rail-btn', els.rail).forEach(b => b.classList.toggle('is-active', b.dataset.tool===tool));
   renderPanel();
-  if (window.matchMedia('(max-width:760px)').matches) els.panel.classList.add('open');
+  // só abre a gaveta quando o usuário escolhe a ferramenta (não no load)
+  if (booted && window.matchMedia('(max-width:760px)').matches) els.panel.classList.add('open');
 }
 function setSide(side){
   state.side=side; state.selectedId=null;
@@ -518,5 +520,6 @@ function init(){
   });
 
   snapshot();
+  booted = true;
 }
 document.addEventListener('DOMContentLoaded', init);
