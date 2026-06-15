@@ -56,6 +56,13 @@ const SHAPES = ['rect','circle','triangle','line','star','heart'];
 // proporções da área de estampa em relação ao mockup (frações)
 const PA = { x:0.333, y:0.292, w:0.333, h:0.425 };
 
+// As coordenadas dos elementos (x, y, w, h, size) são guardadas como FRAÇÕES
+// (0..1) da área de estampa — assim funcionam em qualquer tamanho de tela
+// (desktop, tablet, celular) sem desalinhar. SIZE_REF só converte a fração
+// do texto para um número "em px" amigável no controle de tamanho.
+const SIZE_REF = 300;
+function paDims(){ return [els.printArea.offsetWidth || 1, els.printArea.offsetHeight || 1]; }
+
 /* ------------------------------------------------------------------ */
 /* 2. ESTADO                                                           */
 /* ------------------------------------------------------------------ */
@@ -96,7 +103,7 @@ function toast(msg){
 /* 4. PERSISTÊNCIA (autosave)                                          */
 /* ------------------------------------------------------------------ */
 
-const SAVE_KEY = 'mockup-camiseta-v1';
+const SAVE_KEY = 'mockup-camiseta-v2';
 function saveLocal(){
   try{ localStorage.setItem(SAVE_KEY, JSON.stringify({
     product:state.product, color:state.color, elements:state.elements, seq:state.seq,
@@ -163,18 +170,19 @@ function shapeSVG(shape, fill){
 
 function renderElements(){
   els.printArea.innerHTML = '';
+  const [paW, paH] = paDims();
   curList().sort((a,b) => a.z - b.z).forEach(el => {
     const node = document.createElement('div');
     node.className = 'el is-' + (el.type==='text' ? 'text' : el.type);
     node.dataset.id = el.id;
-    node.style.left = el.x+'px'; node.style.top = el.y+'px'; node.style.width = el.w+'px';
-    node.style.height = el.type==='text' ? 'auto' : el.h+'px';
+    node.style.left = (el.x*paW)+'px'; node.style.top = (el.y*paH)+'px'; node.style.width = (el.w*paW)+'px';
+    node.style.height = el.type==='text' ? 'auto' : (el.h*paH)+'px';
     node.style.transform = `translate(-50%,-50%) rotate(${el.rot}deg)`;
     node.style.zIndex = el.z;
     if (el.type==='text'){
       node.textContent = el.text || ' ';
       node.style.fontFamily = `'${el.font}', sans-serif`;
-      node.style.fontSize = el.size+'px'; node.style.color = el.color;
+      node.style.fontSize = (el.size*paW)+'px'; node.style.color = el.color;
       node.style.fontWeight = el.bold?'800':'400'; node.style.fontStyle = el.italic?'italic':'normal';
       node.style.textAlign = el.align; node.style.textTransform = el.upper?'uppercase':'none';
     } else if (el.type==='image'){
@@ -206,60 +214,69 @@ function bindElementEvents(node, el){
   if (de) de.addEventListener('pointerdown', ev=>{ ev.stopPropagation(); deleteElement(el.id); });
 }
 function startDrag(ev, el){
-  const sx=ev.clientX, sy=ev.clientY, ox=el.x, oy=el.y, z=state.zoom;
-  const move=e=>{ el.x=ox+(e.clientX-sx)/z; el.y=oy+(e.clientY-sy)/z; syncNode(el); };
+  const sx=ev.clientX, sy=ev.clientY, ox=el.x, oy=el.y, z=state.zoom, [paW,paH]=paDims();
+  const move=e=>{ el.x=ox+(e.clientX-sx)/z/paW; el.y=oy+(e.clientY-sy)/z/paH; syncNode(el); };
   const up=()=>{ detach(move,up); snapshot(); }; attach(move,up);
 }
 function startResize(ev, el){
-  const sx=ev.clientX, sy=ev.clientY, z=state.zoom;
+  const sx=ev.clientX, sy=ev.clientY, z=state.zoom, [paW,paH]=paDims();
   if (el.type==='text'){
     const o=el.size;
-    const move=e=>{ const d=((e.clientX-sx)+(e.clientY-sy))/2/z; el.size=Math.max(8,Math.round(o+d)); syncNode(el); renderInspector(); };
+    const move=e=>{ const d=((e.clientX-sx)+(e.clientY-sy))/2/z/paW; el.size=Math.max(0.03,o+d); syncNode(el); renderInspector(); };
     const up=()=>{ detach(move,up); snapshot(); }; attach(move,up);
   } else {
     const ow=el.w, ratio=el.h/el.w;
-    const move=e=>{ const d=(e.clientX-sx)/z; el.w=Math.max(20,Math.round(ow+d)); el.h=Math.max(20,Math.round(el.w*ratio)); syncNode(el); };
+    const move=e=>{ const d=(e.clientX-sx)/z/paW; el.w=Math.max(0.05,ow+d); el.h=el.w*ratio; syncNode(el); };
     const up=()=>{ detach(move,up); snapshot(); }; attach(move,up);
   }
 }
 function startRotate(ev, el){
-  const r=els.printArea.getBoundingClientRect(), z=state.zoom;
-  const cx=r.left+el.x*z, cy=r.top+el.y*z;
+  const r=els.printArea.getBoundingClientRect();
+  const cx=r.left+el.x*r.width, cy=r.top+el.y*r.height;
   const move=e=>{ el.rot=Math.round(Math.atan2(e.clientY-cy,e.clientX-cx)*180/Math.PI+90); syncNode(el); };
   const up=()=>{ detach(move,up); snapshot(); }; attach(move,up);
 }
 function syncNode(el){
   const n=els.printArea.querySelector(`[data-id="${el.id}"]`); if(!n) return;
-  n.style.left=el.x+'px'; n.style.top=el.y+'px'; n.style.width=el.w+'px';
-  if (el.type!=='text') n.style.height=el.h+'px';
+  const [paW,paH]=paDims();
+  n.style.left=(el.x*paW)+'px'; n.style.top=(el.y*paH)+'px'; n.style.width=(el.w*paW)+'px';
+  if (el.type!=='text') n.style.height=(el.h*paH)+'px';
   n.style.transform=`translate(-50%,-50%) rotate(${el.rot}deg)`;
-  if (el.type==='text') n.style.fontSize=el.size+'px';
+  if (el.type==='text') n.style.fontSize=(el.size*paW)+'px';
 }
 function attach(m,u){ window.addEventListener('pointermove',m); window.addEventListener('pointerup',u); }
 function detach(m,u){ window.removeEventListener('pointermove',m); window.removeEventListener('pointerup',u); }
 
 /* ------- CRUD ------- */
 function nextZ(){ return curList().reduce((m,e)=>Math.max(m,e.z),0)+1; }
-function center(){ return { x:els.printArea.offsetWidth/2, y:els.printArea.offsetHeight/2 }; }
 
 function addText(){
-  const c=center();
-  curList().push({ id:uid(), type:'text', text:'SEU TEXTO', x:c.x, y:c.y, w:160, h:40, rot:0, z:nextZ(),
-    font:'Anton', size:34, color:'#1c1c1e', bold:false, italic:false, align:'center', upper:true });
+  // coords como frações (0..1) da área de estampa; centro = 0.5/0.5
+  curList().push({ id:uid(), type:'text', text:'SEU TEXTO', x:0.5, y:0.5, w:0.9, h:0.2, rot:0, z:nextZ(),
+    font:'Anton', size:0.22, color:'#1c1c1e', bold:false, italic:false, align:'center', upper:true });
   finishAdd();
 }
 function addImageFromSrc(src){
   const img=new Image();
-  img.onload=()=>{ const c=center(), w=Math.min(150,img.width||150), ratio=(img.height||120)/(img.width||150);
-    curList().push({ id:uid(), type:'image', src, x:c.x, y:c.y, w, h:Math.round(w*ratio), rot:0, z:nextZ(), opacity:1 }); finishAdd(); };
+  img.onload=()=>{
+    const [paW,paH]=paDims();
+    const wFrac=0.6, pxw=wFrac*paW, pxh=pxw*((img.height||120)/(img.width||150)), hFrac=pxh/paH;
+    curList().push({ id:uid(), type:'image', src, x:0.5, y:0.5, w:wFrac, h:hFrac, rot:0, z:nextZ(), opacity:1 });
+    finishAdd();
+  };
   img.src=src;
 }
 function addShape(shape){
-  const c=center();
-  curList().push({ id:uid(), type:'shape', shape, x:c.x, y:c.y, w:90, h:shape==='line'?40:90, rot:0, z:nextZ(), fill:'#ff4d2d', opacity:1 });
+  const [paW,paH]=paDims();
+  const wFrac=0.5, pxw=wFrac*paW, pxh=(shape==='line'?pxw*0.25:pxw), hFrac=pxh/paH;
+  curList().push({ id:uid(), type:'shape', shape, x:0.5, y:0.5, w:wFrac, h:hFrac, rot:0, z:nextZ(), fill:'#ff4d2d', opacity:1 });
   finishAdd();
 }
-function finishAdd(){ const el=curList()[curList().length-1]; state.selectedId=el.id; renderElements(); renderInspector(); snapshot(); }
+function finishAdd(){
+  const el=curList()[curList().length-1]; state.selectedId=el.id;
+  els.panel.classList.remove('open');           // no mobile, volta pro palco
+  renderElements(); renderInspector(); openInspectorMobile(); snapshot();
+}
 function deleteElement(id){
   const l=curList(), i=l.findIndex(e=>e.id===id); if(i>=0) l.splice(i,1);
   if (state.selectedId===id) state.selectedId=null;
@@ -305,7 +322,7 @@ function renderPanel(){
     SHAPES.forEach(s => h += `<button class="shape-btn" data-shape="${s}">${shapeIcon(s)}</button>`);
     h += `</div><p class="hint">Selecione no palco para mudar a cor.</p>`;
   }
-  els.panel.innerHTML = h;
+  els.panel.innerHTML = `<button class="panel-close" id="panel-close">✕ fechar</button>` + h;
   bindPanelEvents();
 }
 function shapeIcon(s){
@@ -316,6 +333,7 @@ function shapeIcon(s){
   return `<svg viewBox="0 0 30 30">${m[s]||m.rect}</svg>`;
 }
 function bindPanelEvents(){
+  const pc=$('#panel-close'); if (pc) pc.onclick=()=>els.panel.classList.remove('open');
   $$('.product-card', els.panel).forEach(b => b.onclick=()=>{ state.product=b.dataset.product; renderShirt(); renderPanel(); saveLocal(); });
   $$('[data-color]', els.panel).forEach(b => b.onclick=()=>{ state.color=COLORS[+b.dataset.color]; renderShirt(); renderPanel(); saveLocal(); });
   const cu=$('#custom-color'); if (cu) cu.oninput=e=>{ state.color={name:'Personalizada', hex:e.target.value}; renderShirt(); saveLocal(); $('.color-name').textContent='Personalizada'; };
@@ -348,7 +366,7 @@ function renderInspector(){
     h += `<div class="field"><label>Fonte</label><select id="p-font">`;
     FONTS.forEach(f => h += `<option value="${f}" ${f===el.font?'selected':''} style="font-family:'${f}'">${f}</option>`);
     h += `</select></div>`;
-    h += `<div class="field"><label>Tamanho</label><div class="range-row"><input type="range" id="p-size" min="8" max="120" value="${el.size}"><output>${el.size}px</output></div></div>`;
+    h += `<div class="field"><label>Tamanho</label><div class="range-row"><input type="range" id="p-size" min="8" max="200" value="${Math.round(el.size*SIZE_REF)}"><output>${Math.round(el.size*SIZE_REF)}</output></div></div>`;
     h += `<div class="field"><label>Estilo</label><div class="btn-row"><button class="chip ${el.bold?'is-active':''}" id="p-bold"><b>B</b></button><button class="chip ${el.italic?'is-active':''}" id="p-italic"><i>I</i></button><button class="chip ${el.upper?'is-active':''}" id="p-upper">AA</button></div></div>`;
     h += `<div class="field"><label>Alinhamento</label><div class="btn-row"><button class="chip ${el.align==='left'?'is-active':''}" data-align="left">⬅</button><button class="chip ${el.align==='center'?'is-active':''}" data-align="center">⬛</button><button class="chip ${el.align==='right'?'is-active':''}" data-align="right">➡</button></div></div>`;
     h += colorField('p-color', el.color);
@@ -375,7 +393,7 @@ function bindPropsEvents(el){
   const close=$('#insp-close'); if (close) close.onclick=()=>{ closeInspectorMobile(); deselect(); };
   const txt=$('#p-text'); if (txt){ txt.oninput=e=>{ el.text=e.target.value; renderElements(); }; txt.onchange=snapshot; }
   const fnt=$('#p-font'); if (fnt) fnt.onchange=e=>{ el.font=e.target.value; node(el).style.fontFamily=`'${el.font}',sans-serif`; snapshot(); };
-  const sz=$('#p-size'); if (sz){ sz.oninput=e=>{ el.size=+e.target.value; sz.nextElementSibling.value=el.size+'px'; syncNode(el); }; sz.onchange=snapshot; }
+  const sz=$('#p-size'); if (sz){ sz.oninput=e=>{ el.size=(+e.target.value)/SIZE_REF; sz.nextElementSibling.value=e.target.value; syncNode(el); }; sz.onchange=snapshot; }
   const op=$('#p-opacity'); if (op){ op.oninput=e=>{ el.opacity=+e.target.value/100; op.nextElementSibling.value=e.target.value+'%'; node(el).style.opacity=el.opacity; }; op.onchange=snapshot; }
   const bold=$('#p-bold'); if (bold) bold.onclick=()=>{ el.bold=!el.bold; renderElements(); renderInspector(); snapshot(); };
   const ital=$('#p-italic'); if (ital) ital.onclick=()=>{ el.italic=!el.italic; renderElements(); renderInspector(); snapshot(); };
@@ -431,26 +449,24 @@ async function exportPNG(){
       .replace(/currentColor/g, state.color.hex);
     ctx.drawImage(await svgToImg(shirt), 0, 0, SIZE, SIZE);
 
-    // mapeia coords da área de estampa -> canvas
+    // área de estampa em px no canvas (coords dos elementos são frações 0..1)
     const paX=PA.x*SIZE, paY=PA.y*SIZE, paW=PA.w*SIZE, paH=PA.h*SIZE;
-    const sw=els.printArea.offsetWidth||1, sh=els.printArea.offsetHeight||1;
-    const sx=paW/sw, sy=paH/sh;
 
     if (document.fonts && document.fonts.ready) { try{ await document.fonts.ready; }catch(e){} }
 
     for (const el of [...curList()].sort((a,b)=>a.z-b.z)){
-      const cx=paX+el.x*sx, cy=paY+el.y*sy;
+      const cx=paX+el.x*paW, cy=paY+el.y*paH;
       ctx.save(); ctx.translate(cx,cy); ctx.rotate(el.rot*Math.PI/180);
       if (el.type==='text'){
         ctx.globalAlpha=1;
-        ctx.font=`${el.italic?'italic ':''}${el.bold?'800':'400'} ${el.size*sx}px '${el.font}', sans-serif`;
+        ctx.font=`${el.italic?'italic ':''}${el.bold?'800':'400'} ${el.size*paW}px '${el.font}', sans-serif`;
         ctx.fillStyle=el.color; ctx.textAlign=el.align==='left'?'left':el.align==='right'?'right':'center'; ctx.textBaseline='middle';
         ctx.fillText(el.upper?(el.text||'').toUpperCase():(el.text||''), 0, 0);
       } else if (el.type==='image'){
-        ctx.globalAlpha=el.opacity; const w=el.w*sx, hh=el.h*sy;
+        ctx.globalAlpha=el.opacity; const w=el.w*paW, hh=el.h*paH;
         ctx.drawImage(await loadImg(el.src), -w/2, -hh/2, w, hh);
       } else if (el.type==='shape'){
-        ctx.globalAlpha=el.opacity; const w=el.w*sx, hh=el.h*sy;
+        ctx.globalAlpha=el.opacity; const w=el.w*paW, hh=el.h*paH;
         const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="${w}" height="${hh}" preserveAspectRatio="none">${shapeInner(el.shape,el.fill)}</svg>`;
         ctx.drawImage(await svgToImg(svg), -w/2, -hh/2, w, hh);
       }
@@ -487,6 +503,9 @@ function init(){
   $('#mobile-props-btn').onclick=()=>{ renderInspector(); els.inspector.classList.add('open'); };
 
   els.printArea.addEventListener('pointerdown', e => { if (e.target===els.printArea) deselect(); });
+
+  // reposiciona a arte quando a tela muda de tamanho (girar celular, etc.)
+  let rT; window.addEventListener('resize', () => { clearTimeout(rT); rT=setTimeout(renderElements, 120); });
   els.fileInput.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=ev=>addImageFromSrc(ev.target.result); r.readAsDataURL(f); els.fileInput.value=''; };
 
   document.addEventListener('keydown', e => {
