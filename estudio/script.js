@@ -200,6 +200,7 @@ function renderElements(){
     bindElementEvents(node, el);
     els.printArea.appendChild(node);
   });
+  updateSelBar(); updateHint();
 }
 function makeHandle(cls,label){ const h=document.createElement('div'); h.className='handle '+cls; h.textContent=label; return h; }
 
@@ -275,8 +276,8 @@ function addShape(shape){
 }
 function finishAdd(){
   const el=curList()[curList().length-1]; state.selectedId=el.id;
-  els.panel.classList.remove('open');           // no mobile, volta pro palco
-  renderElements(); renderInspector(); openInspectorMobile(); snapshot();
+  els.panel.classList.remove('open');           // fecha a gaveta, volta pro palco
+  renderElements(); renderInspector(); snapshot();
 }
 function deleteElement(id){
   const l=curList(), i=l.findIndex(e=>e.id===id); if(i>=0) l.splice(i,1);
@@ -288,8 +289,29 @@ function duplicateElement(){
   const c=JSON.parse(JSON.stringify(el)); c.id=uid(); c.x+=16; c.y+=16; c.z=nextZ();
   curList().push(c); state.selectedId=c.id; renderElements(); renderInspector(); snapshot();
 }
-function selectElement(id){ state.selectedId=id; renderElements(); renderInspector(); openInspectorMobile(); }
+function selectElement(id){ state.selectedId=id; renderElements(); renderInspector(); }
 function deselect(){ if(!state.selectedId) return; state.selectedId=null; renderElements(); renderInspector(); }
+
+/* barra de ação flutuante do elemento selecionado */
+function updateSelBar(){
+  const bar=$('#sel-bar'); if(!bar) return;
+  bar.hidden = !selected();
+}
+function updateHint(){
+  const hint=$('#stage-hint'); if(!hint) return;
+  hint.hidden = curList().length > 0;
+}
+function scaleSelected(factor){
+  const el=selected(); if(!el) return;
+  if (el.type==='text') el.size=Math.max(0.03, Math.min(0.9, el.size*factor));
+  else { el.w=Math.max(0.05, Math.min(1.2, el.w*factor)); el.h=Math.max(0.05, el.h*factor); }
+  syncNode(el); renderInspector(); snapshot();
+}
+function rotateSelected(deg){
+  const el=selected(); if(!el) return;
+  el.rot=Math.round((el.rot+deg)%360); syncNode(el); snapshot();
+}
+function editSelected(){ if(selected()) els.inspector.classList.add('open'); }
 function bringForward(){ const el=selected(); if(el){ el.z=nextZ(); renderElements(); snapshot(); } }
 function sendBackward(){ const el=selected(); if(!el) return; el.z=curList().reduce((m,e)=>Math.min(m,e.z),Infinity)-1; renderElements(); snapshot(); }
 
@@ -502,7 +524,16 @@ function init(){
   $('#clear-side').onclick=()=>{ if(curList().length && confirm('Remover todos os elementos deste lado?')){ state.elements[state.side]=[]; state.selectedId=null; renderElements(); renderInspector(); snapshot(); } };
   $('#reset-design').onclick=()=>{ if(confirm('Reiniciar o projeto do zero? Isto apaga a arte salva.')) resetDesign(); };
   $('#export-png').onclick=exportPNG;
-  $('#mobile-props-btn').onclick=()=>{ renderInspector(); els.inspector.classList.add('open'); };
+  $$('#sel-bar [data-act]').forEach(b => b.onclick=()=>{
+    const a=b.dataset.act;
+    if (a==='rotL') rotateSelected(-15);
+    else if (a==='rotR') rotateSelected(15);
+    else if (a==='smaller') scaleSelected(0.88);
+    else if (a==='bigger') scaleSelected(1.14);
+    else if (a==='dup') duplicateElement();
+    else if (a==='edit') editSelected();
+    else if (a==='del') deleteElement(state.selectedId);
+  });
 
   els.printArea.addEventListener('pointerdown', e => { if (e.target===els.printArea) deselect(); });
 

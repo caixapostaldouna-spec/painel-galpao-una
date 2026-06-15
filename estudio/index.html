@@ -59,14 +59,24 @@
             <div class="shirt-svg" id="shirt-svg"></div>
             <div class="print-area" id="print-area" aria-label="Área de estampa"></div>
           </div>
+          <div class="stage-hint" id="stage-hint" hidden>Toque em <b>Texto</b>, <b>Imagem</b> ou <b>Formas</b> para começar ✨</div>
+        </div>
+
+        <!-- barra de ação do elemento selecionado -->
+        <div class="sel-bar" id="sel-bar" hidden>
+          <button data-act="rotL" title="Girar à esquerda">↺</button>
+          <button data-act="rotR" title="Girar à direita">↻</button>
+          <button data-act="smaller" title="Diminuir">A−</button>
+          <button data-act="bigger" title="Aumentar">A+</button>
+          <button data-act="dup" title="Duplicar">⧉</button>
+          <button class="edit" data-act="edit" title="Editar">✎ Editar</button>
+          <button class="danger" data-act="del" title="Excluir">🗑</button>
         </div>
 
         <div class="side-switch">
           <button class="side-btn is-active" data-side="front">Frente</button>
           <button class="side-btn" data-side="back">Verso</button>
         </div>
-
-        <button class="mobile-props-btn" id="mobile-props-btn" hidden>Editar elemento ▸</button>
       </section>
 
       <!-- inspector -->
