@@ -172,6 +172,7 @@ function snapshot(){
   if (history.length > 60) history.shift();
   historyIndex = history.length - 1;
   updateUndoRedo();
+  saveLocal();
 }
 function restore(json){
   state.elements = JSON.parse(json);
@@ -185,6 +186,47 @@ function redo(){ if (historyIndex < history.length-1){ historyIndex++; restore(h
 function updateUndoRedo(){
   $('#undo').disabled = historyIndex <= 0;
   $('#redo').disabled = historyIndex >= history.length-1;
+}
+
+/* ------------------------------------------------------------------ */
+/* 5b. PERSISTÊNCIA LOCAL (autosave no navegador)                      */
+/* ------------------------------------------------------------------ */
+
+const SAVE_KEY = 'estudio-design-v1';
+
+function saveLocal(){
+  try{
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      product:state.product, fabric:state.fabric, color:state.color,
+      size:state.size, technique:state.technique,
+      elements:state.elements, seq:state.seq,
+    }));
+  }catch(e){ /* storage indisponível/cheio: segue sem salvar */ }
+}
+
+function loadLocal(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.product   && PRODUCTS.some(p=>p.id===d.product))   state.product = d.product;
+    if (d.fabric    && FABRICS.some(f=>f.id===d.fabric))     state.fabric = d.fabric;
+    if (d.color     && d.color.hex)                          state.color = d.color;
+    if (d.size      && SIZES.includes(d.size))              state.size = d.size;
+    if (d.technique && TECHNIQUES.some(t=>t.id===d.technique)) state.technique = d.technique;
+    if (d.elements  && d.elements.front && d.elements.back)  state.elements = d.elements;
+    if (d.seq)                                               state.seq = d.seq;
+  }catch(e){ /* dado corrompido: ignora e começa limpo */ }
+}
+
+function resetDesign(){
+  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+  state.elements = { front:[], back:[] };
+  state.selectedId = null;
+  state.product='camiseta'; state.fabric='algodao';
+  state.color=COLORS[0]; state.size='M'; state.technique='silk';
+  renderShirt(); renderElements(); renderPanel(); renderInspector(); updatePrice(); snapshot();
+  toast('Projeto reiniciado');
 }
 
 /* ------------------------------------------------------------------ */
@@ -823,6 +865,8 @@ function bindGlobal(){
     }
   };
 
+  $('#reset-design').onclick = () => { if (confirm('Reiniciar o projeto do zero? Isto apaga toda a arte salva.')) resetDesign(); };
+
   $('#btn-cart').onclick = openCart;
   $('#cart-close').onclick = () => $('#cart-modal').hidden = true;
   $('#cart-confirm').onclick = () => { $('#cart-modal').hidden = true; toast('Pedido enviado! (protótipo)'); };
@@ -847,6 +891,7 @@ function bindGlobal(){
 /* ------------------------------------------------------------------ */
 
 function init(){
+  loadLocal();
   renderShirt();
   setTool('produto');
   renderElements();
