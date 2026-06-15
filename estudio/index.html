@@ -3,121 +3,80 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Estúdio de Personalização — Protótipo</title>
+  <title>Mockup de Camiseta — Editor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Caveat:wght@600;700&family=Inter:wght@400;500;600;700;800&family=Lobster&family=Montserrat:wght@400;600;800&family=Pacifico&family=Permanent+Marker&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Caveat:wght@600;700&family=Inter:wght@400;500;600;700;800;900&family=Lobster&family=Montserrat:wght@400;600;800&family=Pacifico&family=Permanent+Marker&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- ============================ TOPBAR ============================ -->
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark">◆</span>
-      <div class="brand-text">
-        <strong>ESTÚDIO</strong>
-        <small>personalização de camisetas</small>
+  <main class="app">
+
+    <!-- ====================== BARRA SUPERIOR ====================== -->
+    <header class="appbar">
+      <div class="brand">
+        <span class="brand-mark">◆</span>
+        <div class="brand-text"><strong>MOCKUP DE CAMISETA</strong><small>editor de personalização</small></div>
       </div>
-    </div>
-
-    <ol class="steps" id="steps">
-      <li class="step is-active" data-step="produto"><i>1</i> Produto</li>
-      <li class="step" data-step="arte"><i>2</i> Arte</li>
-      <li class="step" data-step="estampa"><i>3</i> Estampa</li>
-      <li class="step" data-step="resumo"><i>4</i> Resumo</li>
-    </ol>
-
-    <div class="topbar-right">
-      <div class="price-tag">
-        <small>Total</small>
-        <strong id="price-total">R$ 0,00</strong>
-      </div>
-      <button class="btn-cart" id="btn-cart">Adicionar ao carrinho</button>
-    </div>
-  </header>
-
-  <!-- ============================ LAYOUT =========================== -->
-  <main class="studio">
-
-    <!-- -------- RAIL DE FERRAMENTAS (esquerda) -------- -->
-    <nav class="rail" id="rail" aria-label="Ferramentas">
-      <button class="rail-btn is-active" data-tool="produto" title="Produto">
-        <span class="ico">👕</span><span>Produto</span>
-      </button>
-      <button class="rail-btn" data-tool="cor" title="Cor">
-        <span class="ico">🎨</span><span>Cor</span>
-      </button>
-      <button class="rail-btn" data-tool="texto" title="Texto">
-        <span class="ico">🅣</span><span>Texto</span>
-      </button>
-      <button class="rail-btn" data-tool="imagem" title="Imagem">
-        <span class="ico">🖼️</span><span>Imagem</span>
-      </button>
-      <button class="rail-btn" data-tool="formas" title="Formas">
-        <span class="ico">⬠</span><span>Formas</span>
-      </button>
-      <button class="rail-btn" data-tool="estampa" title="Estampa">
-        <span class="ico">✨</span><span>Estampa</span>
-      </button>
-    </nav>
-
-    <!-- -------- PAINEL CONTEXTUAL (esquerda) -------- -->
-    <section class="panel" id="panel" aria-label="Opções da ferramenta">
-      <!-- conteúdo injetado por JS conforme a ferramenta -->
-    </section>
-
-    <!-- -------- PALCO (centro) -------- -->
-    <section class="stage" id="stage">
-      <div class="stage-toolbar">
+      <div class="appbar-right">
         <button class="mini-btn" id="undo" title="Desfazer">↶</button>
         <button class="mini-btn" id="redo" title="Refazer">↷</button>
         <span class="sep"></span>
-        <button class="mini-btn" id="zoom-out" title="Diminuir zoom">−</button>
-        <span class="zoom-label" id="zoom-label">100%</span>
-        <button class="mini-btn" id="zoom-in" title="Aumentar zoom">+</button>
-        <span class="sep"></span>
-        <button class="mini-btn danger" id="clear-side" title="Limpar este lado">🗑</button>
-        <button class="mini-btn danger" id="reset-design" title="Reiniciar projeto do zero">⟲</button>
+        <button class="btn-ghost" id="reset-design">Reiniciar</button>
+        <button class="btn-primary" id="export-png">Exportar PNG</button>
       </div>
+    </header>
 
-      <div class="mockup-wrap" id="mockup-wrap">
-        <div class="mockup" id="mockup">
-          <div class="shirt-svg" id="shirt-svg"><!-- SVG da camiseta --></div>
-          <div class="print-area" id="print-area" aria-label="Área de estampa">
-            <!-- elementos editáveis injetados aqui -->
+    <!-- ====================== LAYOUT DO EDITOR ==================== -->
+    <div class="studio">
+
+      <!-- rail de ferramentas -->
+      <nav class="rail" id="rail" aria-label="Ferramentas">
+        <button class="rail-btn is-active" data-tool="produto"><span class="ico">👕</span><span>Modelo</span></button>
+        <button class="rail-btn" data-tool="cor"><span class="ico">🎨</span><span>Cor</span></button>
+        <button class="rail-btn" data-tool="texto"><span class="ico">🅣</span><span>Texto</span></button>
+        <button class="rail-btn" data-tool="imagem"><span class="ico">🖼️</span><span>Imagem</span></button>
+        <button class="rail-btn" data-tool="formas"><span class="ico">⬠</span><span>Formas</span></button>
+      </nav>
+
+      <!-- painel contextual -->
+      <section class="panel" id="panel" aria-label="Opções"></section>
+
+      <!-- palco -->
+      <section class="stage" id="stage">
+        <div class="stage-toolbar">
+          <button class="mini-btn" id="zoom-out" title="Diminuir">−</button>
+          <span class="zoom-label" id="zoom-label">100%</span>
+          <button class="mini-btn" id="zoom-in" title="Aumentar">+</button>
+          <span class="sep"></span>
+          <button class="mini-btn" id="toggle-guide" title="Mostrar/ocultar área de estampa">⛶</button>
+          <button class="mini-btn danger" id="clear-side" title="Limpar este lado">🗑</button>
+        </div>
+
+        <div class="mockup-wrap">
+          <div class="mockup" id="mockup">
+            <div class="shirt-svg" id="shirt-svg"></div>
+            <div class="print-area" id="print-area" aria-label="Área de estampa"></div>
           </div>
         </div>
-      </div>
 
-      <div class="side-switch">
-        <button class="side-btn is-active" data-side="front">Frente</button>
-        <button class="side-btn" data-side="back">Costas</button>
-      </div>
-    </section>
+        <div class="side-switch">
+          <button class="side-btn is-active" data-side="front">Frente</button>
+          <button class="side-btn" data-side="back">Verso</button>
+        </div>
 
-    <!-- -------- PAINEL DE PROPRIEDADES / RESUMO (direita) -------- -->
-    <aside class="inspector" id="inspector" aria-label="Propriedades">
-      <!-- injetado por JS: props do elemento selecionado OU resumo do pedido -->
-    </aside>
+        <button class="mobile-props-btn" id="mobile-props-btn" hidden>Editar elemento ▸</button>
+      </section>
 
+      <!-- inspector -->
+      <aside class="inspector" id="inspector" aria-label="Propriedades"></aside>
+
+    </div>
   </main>
 
-  <!-- input escondido para upload -->
   <input type="file" id="file-input" accept="image/*" hidden>
-
-  <!-- toast -->
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-  <!-- modal carrinho -->
-  <div class="cart-modal" id="cart-modal" hidden>
-    <div class="cart-frame">
-      <button class="cart-close" id="cart-close">×</button>
-      <h2>Resumo do pedido</h2>
-      <div class="cart-body" id="cart-body"></div>
-      <button class="btn-cart wide" id="cart-confirm">Finalizar compra</button>
-    </div>
-  </div>
 
   <script src="script.js"></script>
 </body>

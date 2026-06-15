@@ -1,53 +1,33 @@
-# Estúdio de Personalização — Protótipo
+# Mockup de Camiseta — Editor (protótipo)
 
-Protótipo de uma plataforma de personalização de camisetas, no mesmo espírito do
-fluxo da Camisa Dimona (escolher produto → cor/malha → criar a arte → técnica de
-estampa → resumo/carrinho). Construído em **HTML + CSS + JS puro**, sem
-dependências e sem build — é só abrir o `index.html`.
+Página única e sólida para montar o **mockup de uma camiseta (frente e verso)**:
+trocar modelo e cor, adicionar textos, imagens e formas, e exportar em PNG.
+Sem loja, sem carrinho — só o editor. Feito em **HTML + CSS + JS puro**, sem
+dependências e sem build, pronto para ser embutido em outro site no futuro.
 
 ## Como rodar
+Abra `estudio/index.html` no navegador. Pronto.
 
-Abra `estudio/index.html` no navegador (ou acesse `/estudio/` no GitHub Pages).
-
-## O que dá pra fazer
-
-**1. Produto**
-- 4 modelos com silhuetas próprias: Camiseta, Regata, Manga Longa, Moletom.
-- Malha/tecido (Algodão, Premium, Dry Fit, Orgânico) e tamanho (PP–XG).
-
-**2. Cor**
-- Paleta de 12 cores aplicada ao tecido em tempo real (frente e costas).
-
-**3. Arte (editor no palco)**
-- **Texto**: 9 fontes, tamanho, cor, negrito/itálico, caixa alta, alinhamento.
-- **Imagem**: upload de PNG/JPG (logo/arte) + cliparts de exemplo.
-- **Formas**: retângulo, círculo, triângulo, linha, estrela, coração.
-- Cada elemento pode ser **movido, girado, redimensionado, duplicado e
-  reordenado em camadas** (alças no palco + atalhos de teclado).
-- Edição independente para **frente** e **costas**.
-
-**4. Estampa**
-- Técnica de impressão (Silk, Silk Digital, Transfer DTF, Bordado, Sublimação),
-  cada uma com efeito no preço.
-
-**5. Resumo / Carrinho**
-- Preço calculado ao vivo (produto + malha + técnica + personalização + costas).
-- Modal de resumo com o detalhamento do pedido.
+## Recursos
+- **Modelo:** Básica, Baby Look, Regata, Manga Longa, Moletom (estrutura
+  extensível — novos tipos entram em `PRODUCTS` no `script.js`).
+- **Cor:** 12 cores + seletor de cor personalizada (vale frente e verso).
+- **Texto:** 9 fontes, tamanho, cor, negrito/itálico, caixa alta, alinhamento.
+- **Imagem:** upload de PNG/JPG (logo/arte) + cliparts de exemplo.
+- **Formas:** retângulo, círculo, triângulo, linha, estrela, coração.
+- **Manipulação:** mover, girar, redimensionar, duplicar, camadas; alças no palco.
+- **Frente e verso** independentes, com animação de virada.
+- **Exportar PNG** do lado atual em alta resolução (1200×1200).
+- **Autosave** no navegador (não perde o trabalho ao atualizar) + desfazer/refazer.
 
 ## Atalhos
+`Delete` excluir · `Esc` desselecionar · `Ctrl/Cmd+Z` desfazer ·
+`Ctrl/Cmd+Y` refazer · `Ctrl/Cmd+D` duplicar.
 
-| Tecla | Ação |
-|---|---|
-| `Delete` / `Backspace` | excluir elemento selecionado |
-| `Esc` | desselecionar |
-| `Ctrl/Cmd + Z` | desfazer |
-| `Ctrl/Cmd + Y` / `Ctrl+Shift+Z` | refazer |
-| `Ctrl/Cmd + D` | duplicar elemento |
+## Como crescer depois
+- **Novos tipos de camiseta:** adicionar SVG em `SHIRTS` e item em `PRODUCTS`.
+- **Área de estampa:** ajustável pela constante `PA` (proporções no mockup).
+- **Embutir em site:** os 3 arquivos (`index.html`, `style.css`, `script.js`)
+  são estáticos e portáteis.
 
-## Arquivos
-
-- `index.html` — estrutura (topbar, rail, painel, palco, inspector, carrinho)
-- `style.css` — visual (tema claro moderno)
-- `script.js` — catálogo, estado, editor (drag/resize/rotate), preço, histórico
-
-> Protótipo de front-end: não há backend, pagamento real nem persistência.
+> Protótipo de front-end: sem backend e sem persistência em servidor.
