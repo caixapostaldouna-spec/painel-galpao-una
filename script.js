@@ -824,14 +824,14 @@ function recalcLayout() {
   const availH = $board.clientHeight - padding;
   if (availW < 50 || availH < 50) return;
 
-  const targetCardW = 290;
-  const minCardW    = 180;
-  const minCardH    = 100;
-  const maxCardH    = 270;
+  const targetCardW = 260;
+  const minCardW    = 170;
+  const minCardH    = 84;
+  const maxCardH    = 190;
 
   // 1) determinar linhas FIXAS que cabem na altura disponível
   //    cards menores → mais linhas; sempre dentro de min/max
-  const targetRowH = 200;
+  const targetRowH = 148;
   let rows = Math.max(1, Math.floor((availH + gap) / (targetRowH + gap)));
   // tenta acomodar todos sem scroll horizontal se possível
   const colsIdeal = Math.floor((availW + gap) / (targetCardW + gap));
@@ -864,7 +864,9 @@ window.addEventListener('resize', () => {
 function buildDateHTML(date) {
   const d = formatDate(date);
   if (!d) return `— SEM DATA`;
-  return `${d.day}<span class="sep">|</span><span class="month">${d.month}</span>`;
+  // dia GRANDE + "/MM" pequeno — ganha espaço horizontal e vertical no card
+  const mm = String(date.month + 1).padStart(2, '0');
+  return `${d.day}<span class="date-mm">/${mm}</span>`;
 }
 
 /* Habilita edicao inline da data do card. Click abre input; Enter ou blur
