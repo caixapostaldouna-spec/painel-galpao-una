@@ -12,9 +12,15 @@ Painel industrial dos trabalhos em produção. Lê dados direto do Google Sheets
 - Filtro **TORUN**: cada aba começa a listar a partir da primeira linha
   cujo projeto seja "Torun" ou "Torum".
 - **Arrastar** card pra coluna direita = trabalho pronto aguardando retirada.
-- **Duplo clique** no card da coluna direita = trabalho FINALIZADO, some pra
-  sempre (mesmo que continue na planilha).
-- **Clique** abre painel de detalhe com observações livres (salva localmente).
+- **Duplo clique** no card da coluna direita = trabalho DESPACHADO: o painel
+  grava "DESPACHADO" na **coluna J** da linha correspondente na planilha e o
+  servidor passa a filtrar a linha na origem (nunca mais volta). Restaurar
+  pelo popover de despachados limpa a marca.
+- **Clique** no card da coluna direita abre as notas do motorista (Ctrl+V de
+  texto ou imagem). Apagar nota propaga a deleção pros outros dispositivos.
+
+> ⚠️ Não usar a coluna J das abas mensais pra outra coisa — ela é reservada
+> pra marca DESPACHADO do painel.
 
 ## Adicionar novo mês
 

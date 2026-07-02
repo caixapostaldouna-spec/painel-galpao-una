@@ -60,7 +60,8 @@ const SUPPLIER_IGNORE = new Set([
 ]);
 
 const LS_KEY          = 'painel-galpao-locs-v1';
-const LS_FINISHED_KEY = 'painel-galpao-finished-v1';
+const LS_FINISHED_KEY = 'painel-galpao-finished-v1';      // snapshots locais (só UI)
+const LS_FINISHED_MAP_KEY = 'painel-galpao-finished-map-v1'; // id->{state,at} (sincronizado)
 const LS_NOTES_KEY    = 'painel-galpao-notes-v1';
 const LS_THEME_KEY    = 'painel-galpao-theme-v1';
 const LS_DATE_OVR_KEY = 'painel-galpao-date-overrides-v1';
@@ -259,6 +260,18 @@ function slugify(s) {
     .slice(0, 24) || 'X';
 }
 
+/* Chave ESTÁVEL de identidade do trabalho, usada pra marcar "despachado".
+ * Deriva de campos imutáveis (nome + contato + data do cliente), NÃO da
+ * posição na lista. Assim o despacho não some quando o sufixo __N do id
+ * posicional muda (2ª aba do mês, linha duplicada, reordenação na planilha).
+ * O '#' separa os campos e nunca aparece no slug/data. */
+function finishKey(projeto, contato, dateCliente) {
+  const p = slugify(projeto);
+  const c = contato ? slugify(contato) : '';
+  const d = dateCliente ? `${dateCliente.year}-${dateCliente.month}-${dateCliente.day}` : '';
+  return `${p}#${c}#${d}`;
+}
+
 /* ---------- 6. LOAD DATA ------------------------------------------------ */
 
 async function loadData(silent = false) {
@@ -307,13 +320,16 @@ async function loadData(silent = false) {
   }
   const records = filterAndBuildRecords(rows);
 
+  // migra dados gravados com o id posicional antigo pro id estável novo
+  migrateLegacyKeys(records);
+
   // preserva o LOCATIONS dos cards que ainda existem
   const prevLocs = restoreLocations(); // ou usa LOCATIONS atual
   RECORDS.clear();
   LOCATIONS.clear();
   for (const r of records) {
     RECORDS.set(r.id, r);
-    const loc = prevLocs.get(r.id);
+    const loc = prevLocs.get(r.id) || prevLocs.get(r.legacyId);
     LOCATIONS.set(r.id, loc === 'sidebar' ? 'sidebar' : 'board');
     // recalcula a data exibida considerando location + override manual
     r.date = computeDisplayDate(r, LOCATIONS.get(r.id));
@@ -338,28 +354,49 @@ function filterAndBuildRecords(rows) {
 
   const finished = loadFinishedSet();
   const out = [];
-  const used = new Map();
+  const used = new Map();        // finishKey -> count (id estável)
+  const usedLegacy = new Map();  // slug -> count (id posicional antigo, só migração)
   for (const r of slice) {
     const projeto = (r[COL.PROJETO] || '').trim();
     if (!projeto) continue;
+    // linha de cabeçalho não vira card (protege quando a linha TORUN some)
+    if (/^PROJETO$/i.test(projeto)) continue;
 
+    const contato = (r[COL.CONTATO] || '').trim();
     const prazoRaw = (r[COL.PRAZO] || '').trim();
     const dateCliente = prazoRaw ? parseDate(prazoRaw) : null;
     // recua 2 dias úteis pra dar margem de produção
     const date = dateCliente ? shiftBusinessDays(dateCliente, -BUSINESS_DAYS_BACK) : null;
 
-    const slug = slugify(projeto);
-    const count = used.get(slug) || 0;
-    used.set(slug, count + 1);
-    const id = count > 0 ? `${slug}__${count}` : slug;
+    // chave ESTÁVEL por identidade (nome + contato + data do cliente) —
+    // imune a deslocamento de linha na planilha.
+    const fkey = finishKey(projeto, contato, dateCliente);
 
-    if (finished.has(id)) continue;  // trabalho finalizado: nunca mais aparece
+    // id AGORA é a própria chave estável (~N só pra linhas 100% idênticas).
+    // Assim notas/posições/ordem/datas nunca mais "pulam" pra outro card
+    // quando uma linha nova entra na planilha e desloca as demais.
+    const count = used.get(fkey) || 0;
+    used.set(fkey, count + 1);
+    const id = count > 0 ? `${fkey}~${count}` : fkey;
+
+    // id posicional ANTIGO (slug__N) — só pra migrar dados já gravados
+    // (notas/posições/ordem) pro id estável na primeira carga.
+    const slug = slugify(projeto);
+    const lcount = usedLegacy.get(slug) || 0;
+    usedLegacy.set(slug, lcount + 1);
+    const legacyId = lcount > 0 ? `${slug}__${lcount}` : slug;
+
+    // despachado se bater pela chave estável OU pelo id legado (despachos
+    // antigos, gravados antes desta correção, continuam valendo).
+    if (finished.has(fkey) || finished.has(legacyId)) continue;
 
     out.push({
       id,
+      legacyId,                                 // só pra migração de dados antigos
+      finishKey: fkey,                          // identidade estável p/ despacho
       projeto: shortName(projeto.toUpperCase(), 15),
       projetoFull: projeto.toUpperCase(),       // nome inteiro pro painel de detalhe
-      contato: (r[COL.CONTATO] || '').trim(),
+      contato,
       date,                  // data já ajustada (-2 dias úteis)
       dateCliente,           // data original do cliente (pra mostrar no detalhe)
       fornecedores: parseFornecedores(r[COL.FORNECEDOR]),
@@ -398,29 +435,117 @@ function persistLocations() {
 }
 
 /* -- finalizados (despachados) -----------------------------------------
- * Agora guarda snapshot completo (não só id) — permite restaurar com
- * todos os dados e listar os últimos despachados na sidebar. */
+ * DUAS estruturas, de propósito:
+ *
+ *  1) FINISHED_MAP  →  id -> { state:'out'|'in', at:timestamp }
+ *     É a VERDADE pro filtro e pro sync.
+ *       'out' = despachado (some do painel)
+ *       'in'  = restaurado  (volta pro painel)  ← lápide com timestamp
+ *     Merge entre dispositivos é por TIMESTAMP (o mais recente vence). Assim,
+ *     um push velho de outro aparelho NUNCA mais ressuscita um despacho novo,
+ *     e o restaurar também propaga certo. Fica local SEM limite — o aparelho
+ *     nunca esquece o que ele mesmo despachou.
+ *
+ *  2) snapshots (LS_FINISHED_KEY) → lista local com os dados completos de cada
+ *     card, só pra UI "despachados recentes". NÃO é mandada pesada pro sync. */
+
+function loadFinishedMap() {
+  try {
+    const raw = localStorage.getItem(LS_FINISHED_MAP_KEY);
+    if (raw) {
+      const obj = JSON.parse(raw);
+      const m = new Map();
+      for (const [id, v] of Object.entries(obj || {})) {
+        if (v && (v.state === 'out' || v.state === 'in')) {
+          m.set(id, { state: v.state, at: Number(v.at) || 0 });
+        }
+      }
+      return m;
+    }
+  } catch (_) {}
+  // migração: constrói o map a partir dos snapshots antigos (tudo 'out')
+  const m = new Map();
+  for (const f of loadFinishedList()) {
+    if (f && f.id) m.set(f.id, { state: 'out', at: Number(f.finishedAt) || 1 });
+  }
+  if (m.size) persistFinishedMap(m);
+  return m;
+}
+function persistFinishedMap(m) {
+  try { localStorage.setItem(LS_FINISHED_MAP_KEY, JSON.stringify(Object.fromEntries(m))); } catch (_) {}
+}
+// normaliza o que vier do remoto: aceita o map novo {id:{state,at}} OU o
+// formato antigo (array de strings, ou array de snapshots {id, finishedAt}).
+function normalizeFinishedRemote(data) {
+  const m = new Map();
+  if (!data) return m;
+  if (Array.isArray(data)) {
+    for (const it of data) {
+      if (typeof it === 'string') m.set(it, { state: 'out', at: 1 });
+      else if (it && it.id) m.set(it.id, { state: 'out', at: Number(it.finishedAt) || 1 });
+    }
+  } else if (typeof data === 'object') {
+    for (const [id, v] of Object.entries(data)) {
+      if (v && (v.state === 'out' || v.state === 'in')) m.set(id, { state: v.state, at: Number(v.at) || 0 });
+      else m.set(id, { state: 'out', at: 1 });   // tolerante a formatos estranhos
+    }
+  }
+  return m;
+}
+// merge remoto -> local por timestamp (mais novo vence). Em EMPATE de timestamp,
+// 'out' (despachado) vence 'in' (restaurado) — re-despachar nunca perde pra um
+// restore antigo, e a colisão em at:1 (migrados/normalizados) não ressuscita.
+// Retorna true se mudou.
+function mergeFinishedRemote(data) {
+  const remote = normalizeFinishedRemote(data);
+  if (!remote.size) return false;
+  const local = loadFinishedMap();
+  let changed = false;
+  for (const [id, rv] of remote) {
+    const lv = local.get(id);
+    const win = !lv
+      || rv.at > lv.at
+      || (rv.at === lv.at && rv.state === 'out' && lv.state !== 'out');
+    if (win) { local.set(id, rv); changed = true; }
+  }
+  if (changed) persistFinishedMap(local);
+  return changed;
+}
+
 function loadFinishedList() {
   try {
     const raw = localStorage.getItem(LS_FINISHED_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    // back-compat: versão antiga guardava só array de strings
+    // back-compat: versão bem antiga guardava só array de strings
     if (parsed.length > 0 && typeof parsed[0] === 'string') {
       return parsed.map(id => ({ id, finishedAt: 0 }));
     }
     return parsed;
   } catch (_) { return []; }
 }
+// conjunto de ids ATUALMENTE despachados ('out') — usado pelo filtro do CSV.
 function loadFinishedSet() {
-  return new Set(loadFinishedList().map(f => f.id));
+  const s = new Set();
+  for (const [id, v] of loadFinishedMap()) if (v.state === 'out') s.add(id);
+  return s;
 }
+// chave de despacho de um record: a estável (finishKey) com fallback pro id
+function keyOf(rec) { return (rec && rec.finishKey) || (rec && rec.id) || ''; }
+
 function markFinished(rec) {
-  const list = loadFinishedList();
-  const filtered = list.filter(f => f.id !== rec.id);
-  filtered.unshift({
+  const key = keyOf(rec);
+  if (!key) return;
+  // 1) marca no map pela chave ESTÁVEL (verdade pro filtro/sync) com timestamp
+  const m = loadFinishedMap();
+  m.set(key, { state: 'out', at: Date.now() });
+  persistFinishedMap(m);
+  // 2) guarda snapshot local pra UI de despachados (cap generoso, só local)
+  const list = loadFinishedList().filter(f => (f.finishKey || f.id) !== key);
+  list.unshift({
     id: rec.id,
+    finishKey: key,
     projeto: rec.projeto,
     projetoFull: rec.projetoFull,
     contato: rec.contato,
@@ -430,39 +555,76 @@ function markFinished(rec) {
     processos: rec.processos,
     finishedAt: Date.now()
   });
-  if (filtered.length > 50) filtered.length = 50;
-  try { localStorage.setItem(LS_FINISHED_KEY, JSON.stringify(filtered)); } catch (_) {}
-  schedulePushRemote();
-}
-function unmarkFinished(id) {
-  const list = loadFinishedList().filter(f => f.id !== id);
+  if (list.length > 120) list.length = 120;
   try { localStorage.setItem(LS_FINISHED_KEY, JSON.stringify(list)); } catch (_) {}
   schedulePushRemote();
+  // 3) grava DESPACHADO na coluna J da PLANILHA — verdade definitiva.
+  //    O servidor filtra a linha na origem; imune a poda de lápide, device
+  //    novo e edição de data. Se falhar (offline), a lápide local segura.
+  postDispatchAction('dispatch', key);
 }
 
-/* -- notas por card ---------------------------------------------------- */
+// POST fire-and-forget pro Apps Script marcar/limpar a coluna J na planilha
+function postDispatchAction(action, key) {
+  const url = (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS[0] : '') || '';
+  if (!url.includes('script.google.com') || !key) return Promise.resolve();
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action, jobs: [{ key }] })
+  }).catch(err => console.warn(`[sync] ${action} na planilha falhou:`, err));
+}
+// restaurar = lápide 'in' com timestamp novo (vence o 'out' antigo no merge).
+// Recebe a chave estável E o id legado, e marca 'in' nos dois (cobre despachos
+// gravados antes da correção, que estavam keyed pelo id posicional).
+function unmarkFinished(key, legacyId) {
+  const m = loadFinishedMap();
+  const now = Date.now();
+  if (key) m.set(key, { state: 'in', at: now });
+  if (legacyId && legacyId !== key) m.set(legacyId, { state: 'in', at: now });
+  persistFinishedMap(m);
+  const list = loadFinishedList().filter(f => (f.finishKey || f.id) !== key && f.id !== legacyId);
+  try { localStorage.setItem(LS_FINISHED_KEY, JSON.stringify(list)); } catch (_) {}
+  schedulePushRemote();
+  // limpar a marca DESPACHADO na planilha fica a cargo de restoreCard (que
+  // AGUARDA o POST antes de recarregar o CSV — senão a linha ainda vem filtrada)
+}
+
+/* -- notas por card ------------------------------------------------------
+ * Formato NOVO: id -> { html, at }.  `at` = timestamp da última edição.
+ * html vazio = TOMBSTONE de deleção — apagar uma nota propaga a deleção
+ * pros outros devices e ela NUNCA mais ressuscita via sync (antes o pull
+ * remoto re-aplicava a nota deletada 10s depois).
+ * Back-compat: string antiga vira { html, at: 1 } (qualquer edição vence). */
 function loadNotesMap() {
   try {
     const raw = localStorage.getItem(LS_NOTES_KEY);
     if (!raw) return new Map();
-    const obj = JSON.parse(raw);
-    return new Map(Object.entries(obj || {}));
+    const obj = JSON.parse(raw) || {};
+    const m = new Map();
+    for (const [id, v] of Object.entries(obj)) {
+      if (typeof v === 'string') m.set(id, { html: v, at: 1 });
+      else if (v && typeof v === 'object') m.set(id, { html: String(v.html || ''), at: Number(v.at) || 0 });
+    }
+    return m;
   } catch (_) { return new Map(); }
+}
+function persistNotesMap(m) {
+  try { localStorage.setItem(LS_NOTES_KEY, JSON.stringify(Object.fromEntries(m))); } catch(_){}
 }
 function saveNoteFor(id, text) {
   const m = loadNotesMap();
-  if (!text || !text.trim()) m.delete(id);
-  else m.set(id, text);
-  try { localStorage.setItem(LS_NOTES_KEY, JSON.stringify(Object.fromEntries(m))); } catch(_){}
+  // texto vazio vira tombstone (não delete) — deleção precisa sincronizar
+  m.set(id, { html: (text && text.trim()) ? text : '', at: Date.now() });
+  persistNotesMap(m);
   schedulePushRemote();
 }
 function getNoteFor(id) {
-  return loadNotesMap().get(id) || '';
+  const v = loadNotesMap().get(id);
+  return (v && v.html) || '';
 }
 function clearNoteFor(id) {
-  const m = loadNotesMap();
-  m.delete(id);
-  try { localStorage.setItem(LS_NOTES_KEY, JSON.stringify(Object.fromEntries(m))); } catch(_){}
+  saveNoteFor(id, '');   // tombstone + push (deleção propaga pros devices)
 }
 
 /* -- DATE_OVERRIDES (datas editadas manualmente) ----------------------- */
@@ -524,6 +686,36 @@ function persistSidebarOrder() {
     localStorage.setItem(LS_SIDE_ORDER_KEY, JSON.stringify(Object.fromEntries(SIDEBAR_ORDER)));
   } catch (_) {}
 }
+/* -- MIGRAÇÃO id posicional (slug__N) -> id estável (finishKey) ---------
+ * Roda a cada carga: se algum dado (nota/data/ordem) ainda estiver keyed
+ * pelo id antigo, copia pro id novo e apaga o antigo. Idempotente. */
+function migrateLegacyKeys(records) {
+  let notes = null;
+  let touched = false;
+  for (const r of records) {
+    if (!r.legacyId || r.legacyId === r.id) continue;
+    for (const map of [DATE_OVERRIDES, MANUAL_ORDER, SIDEBAR_ORDER]) {
+      if (map.has(r.legacyId)) {
+        if (!map.has(r.id)) map.set(r.id, map.get(r.legacyId));
+        map.delete(r.legacyId);
+        touched = true;
+      }
+    }
+    if (notes === null) notes = loadNotesMap();
+    if (notes.has(r.legacyId)) {
+      if (!notes.has(r.id)) notes.set(r.id, notes.get(r.legacyId));
+      notes.delete(r.legacyId);
+      touched = true;
+    }
+  }
+  if (touched) {
+    persistDateOverrides();
+    persistManualOrder();
+    persistSidebarOrder();
+    if (notes) persistNotesMap(notes);
+  }
+}
+
 // joga um card pro topo da sidebar (numero menor que todos os atuais)
 function bumpSidebarToTop(id) {
   let min = 0;
@@ -590,14 +782,16 @@ function renderAll() {
   //   2) sem ordem manual: cards COM NOTA sobem pro topo (relevância: motoboy
   //      chegando), depois os sem nota na ordem que chegaram.
   const notesMap = loadNotesMap();
+  // nota "de verdade" = html não-vazio (tombstone de deleção não conta)
+  const hasNote = (id) => { const v = notesMap.get(id); return !!(v && v.html && v.html.trim()); };
   sidebarRecs.sort((a, b) => {
     const aO = SIDEBAR_ORDER.has(a.id);
     const bO = SIDEBAR_ORDER.has(b.id);
     if (aO && bO) return SIDEBAR_ORDER.get(a.id) - SIDEBAR_ORDER.get(b.id);
     if (aO) return -1;
     if (bO) return 1;
-    const aN = notesMap.has(a.id) ? 0 : 1;   // nota = 0 → sobe
-    const bN = notesMap.has(b.id) ? 0 : 1;
+    const aN = hasNote(a.id) ? 0 : 1;   // nota = 0 → sobe
+    const bN = hasNote(b.id) ? 0 : 1;
     return aN - bN;
   });
   for (const rec of sidebarRecs) $sidebarInner.appendChild(buildCardMini(rec));
@@ -966,10 +1160,14 @@ function finishCard(id) {
   updateStamp();
 }
 
-function restoreCard(id) {
-  unmarkFinished(id);
+async function restoreCard(key, legacyId) {
+  unmarkFinished(key, legacyId);
+  showToast('RESTAURANDO...', 2500);
+  // AGUARDA limpar a marca na planilha ANTES de recarregar o CSV —
+  // senão o servidor ainda devolve a linha filtrada e o card não volta.
+  try { await postDispatchAction('restore', key); } catch (_) {}
   lastSignature = '';   // força re-fetch
-  loadData(false);
+  await loadData(false);
   showToast('RESTAURADO', 1800);
 }
 
@@ -1129,7 +1327,9 @@ function openDispatched() {
   const empty = document.getElementById('dispatched-empty');
   if (!modal || !list) return;
 
+  const fmap = loadFinishedMap();
   const items = loadFinishedList()
+    .filter(it => { const v = fmap.get(it.finishKey || it.id); return v && v.state === 'out'; })
     .slice()
     .sort((a, b) => (b.finishedAt || 0) - (a.finishedAt || 0))
     .slice(0, 15);
@@ -1149,15 +1349,14 @@ function openDispatched() {
           <div class="dispatched-item-name">${escapeHTML(it.projetoFull || it.projeto || '?')}</div>
           <div class="dispatched-item-meta">${dateStr}${when ? ' · ' + when : ''}</div>
         </div>
-        <button class="dispatched-restore" data-id="${escapeHTML(it.id)}">↻ RESTAURAR</button>
+        <button class="dispatched-restore" data-key="${escapeHTML(it.finishKey || it.id || '')}" data-id="${escapeHTML(it.id || '')}">↻ RESTAURAR</button>
       `;
       list.appendChild(el);
     }
     list.querySelectorAll('.dispatched-restore').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const id = btn.dataset.id;
-        restoreCard(id);
+        restoreCard(btn.dataset.key, btn.dataset.id);
         closeDispatched();
       });
     });
@@ -1502,23 +1701,49 @@ function init() {
 const LS_SYNC_KEY = 'painel-galpao-sync-v1';
 let remoteStateUpdatedAt = 0;
 let pushTimer = null;
+let pendingPush = false;   // true entre uma ação local e o push chegar no servidor
 
 function broadcastSync(kind) {
   try { localStorage.setItem(LS_SYNC_KEY, `${kind}|${Date.now()}|${Math.random()}`); } catch(_){}
   schedulePushRemote();
 }
 
+// manda os finalizados mais recentes pro servidor. O corpo do POST não tem o
+// limite de 9KB (isso é só por VALOR no PropertiesService) — quem cuida disso é
+// o doPost, que MESCLA e PODA antes de gravar. Mandamos um teto alto só como
+// trava de segurança; o aparelho ainda guarda tudo local (nunca ressuscita o
+// próprio). Cap em 800 = folga grande pra atividade real de meses.
+function finishedMapForSync() {
+  const entries = [...loadFinishedMap().entries()]
+    .sort((a, b) => (b[1].at || 0) - (a[1].at || 0))
+    .slice(0, 800);
+  return Object.fromEntries(entries);
+}
+// remove imagens (data: URLs) das notas antes de enviar — uma só já estoura o
+// limite de ~9KB/valor do PropertiesService e faz o POST INTEIRO falhar,
+// congelando todo o sync. Imagens ficam locais; texto sincroniza normal.
+// Manda também os TOMBSTONES (html vazio) — é assim que a deleção propaga.
+function notesForSync() {
+  const out = {};
+  for (const [id, v] of loadNotesMap()) {
+    let s = String(v.html || '').replace(/<img[^>]*>/gi, '');
+    if (s.length > 4000) s = s.slice(0, 4000);
+    out[id] = { html: s.trim() ? s : '', at: v.at || 0 };
+  }
+  return out;
+}
+
 async function pushRemoteState() {
   const url = (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS[0] : '') || '';
-  if (!url.includes('script.google.com')) return;
+  if (!url.includes('script.google.com')) { pendingPush = false; return; }
   try {
     await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
         locations:      Object.fromEntries(LOCATIONS),
-        finished:       loadFinishedList(),
-        notes:          Object.fromEntries(loadNotesMap()),
+        finished:       finishedMapForSync(),
+        notes:          notesForSync(),
         dateOverrides:  Object.fromEntries(DATE_OVERRIDES),
         manualOrder:    Object.fromEntries(MANUAL_ORDER),
         sidebarOrder:   Object.fromEntries(SIDEBAR_ORDER),
@@ -1526,15 +1751,21 @@ async function pushRemoteState() {
     });
   } catch (err) {
     console.warn('[sync] push falhou:', err);
+  } finally {
+    pendingPush = false;   // libera o pull (mudança local já foi enviada)
   }
 }
 
 function schedulePushRemote() {
+  pendingPush = true;      // marca: tem mudança local esperando subir
   clearTimeout(pushTimer);
   pushTimer = setTimeout(pushRemoteState, 700);
 }
 
 async function pullRemoteState() {
+  // se há mudança local ainda não enviada, NÃO deixa o pull sobrescrever
+  // (evita reverter um drag/despacho recente "do nada"). Pega no próximo ciclo.
+  if (pendingPush) return;
   const url = (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS[0] : '') || '';
   if (!url.includes('script.google.com')) return;
   try {
@@ -1550,17 +1781,51 @@ async function pullRemoteState() {
   }
 }
 
+// um record está despachado se sua chave estável OU seu id legado está 'out'
+function isFinishedRec(rec, outSet) {
+  return !!rec && (outSet.has(rec.finishKey) || outSet.has(rec.id));
+}
+
 function applyRemoteState(data) {
-  if (data.locations) {
-    LOCATIONS.clear();
-    for (const [k,v] of Object.entries(data.locations)) LOCATIONS.set(k, v);
+  // FINISHED primeiro (antes de locations): assim o overwrite de locations não
+  // re-assenta no board um card que acabou de ser despachado em outro device.
+  if (data.finished !== undefined) {
+    // MERGE por timestamp (nunca substitui em bloco) — um push velho não
+    // consegue mais ressuscitar um card despachado neste aparelho.
+    mergeFinishedRemote(data.finished);
+    // tira do painel na hora os que passaram a estar despachados em outro device
+    const out = loadFinishedSet();
+    for (const [id, rec] of [...RECORDS]) {
+      if (isFinishedRec(rec, out)) { RECORDS.delete(id); LOCATIONS.delete(id); }
+    }
     persistLocations();
   }
-  if (Array.isArray(data.finished)) {
-    try { localStorage.setItem(LS_FINISHED_KEY, JSON.stringify(data.finished)); } catch(_){}
+  if (data.locations) {
+    const out = loadFinishedSet();
+    // OVERLAY (sem clear): não descarta a posição de um card que só este
+    // device conhece (recém-carregado) — antes o clear jogava ele pro board.
+    for (const [k,v] of Object.entries(data.locations)) {
+      // não re-assenta card já despachado (record conhecido e 'out')
+      if (isFinishedRec(RECORDS.get(k), out)) continue;
+      if (v === 'board' || v === 'sidebar') LOCATIONS.set(k, v);
+    }
+    persistLocations();
   }
-  if (data.notes) {
-    try { localStorage.setItem(LS_NOTES_KEY, JSON.stringify(data.notes)); } catch(_){}
+  if (data.notes && typeof data.notes === 'object') {
+    // merge por TIMESTAMP (igual finished): o mais novo vence, inclusive
+    // tombstone de deleção (html vazio). Nota deletada NUNCA ressuscita.
+    // Empate mantém a local — protege nota com imagem (imagem não sobe pro
+    // sync, então a cópia remota do mesmo instante vem sem a imagem).
+    const localNotes = loadNotesMap();
+    let changed = false;
+    for (const [id, v] of Object.entries(data.notes)) {
+      const rv = (typeof v === 'string')
+        ? { html: v, at: 1 }
+        : { html: String((v && v.html) || ''), at: Number(v && v.at) || 0 };
+      const lv = localNotes.get(id);
+      if (!lv || rv.at > lv.at) { localNotes.set(id, rv); changed = true; }
+    }
+    if (changed) persistNotesMap(localNotes);
   }
   if (data.dateOverrides && typeof data.dateOverrides === 'object') {
     DATE_OVERRIDES.clear();
@@ -1583,6 +1848,10 @@ function applyRemoteState(data) {
     }
     persistSidebarOrder();
   }
+  // o remoto pode ter mandado chaves legadas (device com build antiga):
+  // migra pro id estável antes de renderizar, senão a ordem some até o
+  // próximo loadData.
+  migrateLegacyKeys([...RECORDS.values()]);
   // recalcula datas dos records com overrides + location
   for (const [id, rec] of RECORDS) {
     rec.date = computeDisplayDate(rec, LOCATIONS.get(id) || 'board');
@@ -1601,8 +1870,8 @@ function setupCrossTabSync() {
         for (const [k,v] of arr) LOCATIONS.set(k, v);
         renderAll();
       } catch(_){}
-    } else if (e.key === LS_FINISHED_KEY) {
-      // alguém finalizou — recarrega tudo (pra remover do dataset)
+    } else if (e.key === LS_FINISHED_KEY || e.key === LS_FINISHED_MAP_KEY) {
+      // alguém finalizou/restaurou — recarrega tudo (pra refletir no dataset)
       lastSignature = '';
       loadData(true);
     } else if (e.key === LS_NOTES_KEY) {
