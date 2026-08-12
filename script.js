@@ -1725,7 +1725,18 @@ function init() {
     closeDetail();
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { closeDetail(); closeMotorista(); closeDispatched(); }
+    if (e.key !== 'Escape') return;
+    // tinha popup aberto? o Esc é dele
+    const dm = document.getElementById('dispatched-modal');
+    const mm = document.getElementById('motorista-modal');
+    const tinhaAberto = !!activeDetailId || !!activeMotoristaId ||
+      (dm && !dm.hidden) || (mm && !mm.hidden);
+    closeDetail(); closeMotorista(); closeDispatched();
+    // Esc "sobrando" e o painel está EMBUTIDO (dentro do UNA CHAT):
+    // avisa o pai pra voltar pras conversas
+    if (!tinhaAberto && window.parent !== window) {
+      try { window.parent.postMessage({ tipo: 'painel-esc' }, '*'); } catch (_) {}
+    }
   });
 
   setupMotoristaModal();
