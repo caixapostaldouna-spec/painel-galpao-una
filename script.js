@@ -39,9 +39,10 @@ const COL = { PROJETO: 1, CONTATO: 3, PRAZO: 4, FORNECEDOR: 6, PROCESSO: 7 };
 
 const FORNECEDORES_CONHECIDOS = ["MK","TG","IZ","XBZ","CRI"];
 
-// Dias úteis de antecedência operacional. Prazo do cliente recua N dias úteis
-// no painel pra dar margem de produção (entrega 2 dias antes do prazo final).
-const BUSINESS_DAYS_BACK = 2;
+// Recuo de dias úteis DESLIGADO (pedido do dono, 12/08/2026): o card mostra
+// a data EXATA da planilha. Quem quiser outra data edita no próprio card
+// (override manual continua valendo por cima). Pra religar, volte pra 2.
+const BUSINESS_DAYS_BACK = 0;
 
 // aliases -> sigla canônica. Aceita o que vier escrito na coluna G.
 const SUPPLIER_ALIASES = {
