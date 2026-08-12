@@ -275,7 +275,13 @@ function finishKey(projeto, contato, dateCliente) {
 
 /* ---------- 6. LOAD DATA ------------------------------------------------ */
 
+let _loadNoAr = false;
 async function loadData(silent = false) {
+  if (_loadNoAr) return;          // ainda tem uma carga no ar — não empilha
+  _loadNoAr = true;
+  try { return await _loadData(silent); } finally { _loadNoAr = false; }
+}
+async function _loadData(silent = false) {
   const urls = (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS : [])
     .map(u => (u || '').trim())
     .filter(Boolean);
@@ -1571,8 +1577,8 @@ setInterval(updateStamp, 60000);
  *  +  : Page Visibility API — refresh imediato quando volta da background
  */
 const FULL_REFRESH_MS  = 5 * 60 * 1000;   // 5 min
-const QUICK_REFRESH_MS = 30 * 1000;       // 30 s
-const STATE_PULL_MS    = 10 * 1000;       // 10 s
+const QUICK_REFRESH_MS = 10 * 1000;       // 10 s — planilha (chamada pesada)
+const STATE_PULL_MS    = 5 * 1000;        // 5 s — drag/despacho/notas
 
 /* ----- Auto-reload quando há build nova no servidor ----------------- */
 const MY_BUILD = document.querySelector('meta[name="build-version"]')?.content || '';
@@ -1605,7 +1611,7 @@ function startAllRefreshers() {
   // verifica overlay BORA ALMOCAR a cada 30s
   setInterval(checkLunchOverlay, 30000);
   // 60s: verifica se ha nova build (auto-reload)
-  setInterval(checkForNewBuild, 60000);
+  setInterval(checkForNewBuild, 5000);
 }
 
 // quando a aba volta a ficar visível, força refresh imediato
