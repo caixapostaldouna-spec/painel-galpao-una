@@ -915,6 +915,28 @@ function enableDateEditing(dateEl, rec) {
   });
 }
 
+/* Aceita o que a pessoa digitar com pressa: "15", "1509", "150926",
+ * "15/09", "15-9", "15.09.2026"… A barra é opcional. */
+function parseDataFlexivel(txt) {
+  const t = String(txt || '').trim();
+  if (!t) return null;
+  const so = t.replace(/\D/g, '');
+  // só dígitos (sem separador): deduz DD / DDMM / DDMMAA / DDMMAAAA
+  if (so && so === t) {
+    const now = new Date();
+    let day, month = now.getMonth(), year = now.getFullYear();
+    if (so.length <= 2)      { day = +so; }
+    else if (so.length === 3){ day = +so.slice(0, 1); month = +so.slice(1) - 1; }
+    else if (so.length === 4){ day = +so.slice(0, 2); month = +so.slice(2) - 1; }
+    else if (so.length === 6){ day = +so.slice(0, 2); month = +so.slice(2, 4) - 1; year = 2000 + +so.slice(4); }
+    else if (so.length === 8){ day = +so.slice(0, 2); month = +so.slice(2, 4) - 1; year = +so.slice(4); }
+    else return null;
+    if (day < 1 || day > 31 || month < 0 || month > 11) return null;
+    return { day, month, year };
+  }
+  return parseDate(t);
+}
+
 function openDateEditor(dateEl, rec) {
   if (dateEl.querySelector('input.date-inline-input')) return; // ja em edicao
   const cur = rec.date
@@ -936,6 +958,15 @@ function openDateEditor(dateEl, rec) {
   // selecionar tudo facilita digitar nova data
   setTimeout(() => { input.focus(); input.select(); }, 0);
 
+  // a barra entra SOZINHA: digitou "1509" e aparece "15/09"
+  input.addEventListener('input', () => {
+    const v = input.value;
+    if (!v.includes('/') && /^\d{3,}$/.test(v)) {
+      const so = v.replace(/\D/g, '');
+      input.value = so.slice(0, 2) + '/' + so.slice(2, 4) + (so.length > 4 ? '/' + so.slice(4, 8) : '');
+    }
+  });
+
   let committed = false;
   const restore = () => {
     dateEl.innerHTML = originalHTML;
@@ -952,9 +983,10 @@ function openDateEditor(dateEl, rec) {
       renderAll();
       return;
     }
-    const parsed = parseDate(txt);
+    const parsed = parseDataFlexivel(txt);
     if (!parsed) {
-      // invalido: reverte e nao salva
+      // não entendi: avisa em vez de descartar calado
+      showToast('DATA INVÁLIDA — USE DIA/MÊS (EX.: 15/09)', 2600);
       restore();
       return;
     }
@@ -965,7 +997,7 @@ function openDateEditor(dateEl, rec) {
 
   input.addEventListener('keydown', (e) => {
     e.stopPropagation();
-    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(); }
     else if (e.key === 'Escape') { committed = true; restore(); }
   });
   input.addEventListener('blur', commit);
@@ -1097,6 +1129,12 @@ let draggedId = null;
 
 function attachCardHandlers(card) {
   card.addEventListener('dragstart', (e) => {
+    // começou o gesto em cima da data (ou do editor)? é clique de edição,
+    // não arrasto — sem isso qualquer tremidinha do mouse virava drag
+    if (e.target && e.target.closest && e.target.closest('.card-date, .date-inline-input')) {
+      e.preventDefault();
+      return;
+    }
     draggedId = card.dataset.id;
     e.dataTransfer.effectAllowed = 'move';
     try { e.dataTransfer.setData('text/plain', draggedId); } catch (_) {}

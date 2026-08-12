@@ -283,8 +283,13 @@ body {
   align-items: baseline;
   filter: contrast(1.05);
   flex-shrink: 0;
-  padding-top: 2px;
+  /* alvo de clique generoso: editar a data não pode exigir pontaria */
+  padding: 4px 10px 6px 2px;
+  margin: -2px -8px -4px 0;
+  border-radius: 6px;
 }
+.card-date.is-editable { cursor: text; }
+.card-date.is-editable:hover { outline: 1px dashed rgba(255, 255, 255, 0.35); }
 /* "/MM" pequeno ao lado do dia grande */
 .card-date .date-mm,
 .mini-date .date-mm {
