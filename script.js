@@ -1557,7 +1557,9 @@ function updateStamp() {
   $stamp.textContent = `${hh}:${mm}`;
 }
 
-// relógio ticando a cada minuto
+// relógio ticando a cada minuto (e certo já na abertura — antes
+// ficava "--:--" até o primeiro tique de 60s)
+updateStamp();
 setInterval(updateStamp, 60000);
 
 /* ---------- 12. AUTO-REFRESH ------------------------------------------- */
@@ -1693,10 +1695,13 @@ function init() {
 
   setupCrossTabSync();
   checkLunchOverlay();   // mostra "BORA ALMOÇAR" se já é a hora
-  // estado compartilhado PRIMEIRO, cards depois: num aparelho novo
-  // (memória vazia) a ordem antiga desenhava despachados-fantasma e
-  // centralizava errado até o estado chegar.
-  pullRemoteState()
+  // Estado compartilhado e CSV buscados EM PARALELO. O desenho espera o
+  // estado só até 3,5s (Apps Script frio demora) — se passar disso, desenha
+  // com o que tem e o estado corrige sozinho quando chegar (applyRemoteState
+  // redesenha). Antes era em fila e a tela ficava preta esperando.
+  const estadoCedo = pullRemoteState();
+  const noMaximo = new Promise((r) => setTimeout(r, 3500));
+  Promise.race([estadoCedo, noMaximo])
     .then(() => loadData())
     .then(() => { startAllRefreshers(); });
 }
