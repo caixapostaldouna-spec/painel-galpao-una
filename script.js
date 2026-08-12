@@ -64,6 +64,7 @@ const LS_FINISHED_KEY = 'painel-galpao-finished-v1';      // snapshots locais (s
 const LS_FINISHED_MAP_KEY = 'painel-galpao-finished-map-v1'; // id->{state,at} (sincronizado)
 const LS_NOTES_KEY    = 'painel-galpao-notes-v1';
 const LS_THEME_KEY    = 'painel-galpao-theme-v1';
+const LS_SCALE_KEY    = 'painel-galpao-scale-v1';   // escala pessoal (A- / A+)
 const LS_DATE_OVR_KEY = 'painel-galpao-date-overrides-v1';
 const LS_ORDER_KEY    = 'painel-galpao-order-v1';
 const LS_SIDE_ORDER_KEY = 'painel-galpao-sidebar-order-v1';
@@ -1660,6 +1661,7 @@ function init() {
   });
 
   setupMotoristaModal();
+  setupZoomButtons();
 
   // click em área vazia da sidebar (não num card) → mostra despachados
   $sidebarInner.addEventListener('click', (e) => {
@@ -1691,8 +1693,11 @@ function init() {
 
   setupCrossTabSync();
   checkLunchOverlay();   // mostra "BORA ALMOÇAR" se já é a hora
-  loadData()
-    .then(() => pullRemoteState())
+  // estado compartilhado PRIMEIRO, cards depois: num aparelho novo
+  // (memória vazia) a ordem antiga desenhava despachados-fantasma e
+  // centralizava errado até o estado chegar.
+  pullRemoteState()
+    .then(() => loadData())
     .then(() => { startAllRefreshers(); });
 }
 
@@ -1889,6 +1894,34 @@ function setupCrossTabSync() {
       }
     }
   });
+}
+
+/* -- Escala pessoal (A- / A+) — aumenta/diminui letras E cards juntos.
+ * Vive no aparelho (localStorage): a TV fica no tamanho dela, o computador
+ * de quem tem vista cansada fica maior. recalcLayout refaz as contas
+ * sozinho porque lê o tamanho do board já escalado. */
+function loadScale() {
+  const v = parseFloat(localStorage.getItem(LS_SCALE_KEY) || '1');
+  return Number.isFinite(v) && v >= 0.6 && v <= 2 ? v : 1;
+}
+function applyScale(z) {
+  z = Math.round(Math.min(2, Math.max(0.6, z)) * 10) / 10;
+  document.documentElement.style.setProperty('--ui-scale', z);
+  try { localStorage.setItem(LS_SCALE_KEY, String(z)); } catch (_) {}
+  recalcLayout();
+  showToast(`TAMANHO ${Math.round(z * 100)}%`, 1200);
+  return z;
+}
+function setupZoomButtons() {
+  const $out = document.getElementById('btn-zoom-out');
+  const $in  = document.getElementById('btn-zoom-in');
+  document.documentElement.style.setProperty('--ui-scale', loadScale());
+  if ($out) $out.addEventListener('click', () => applyScale(loadScale() - 0.1));
+  if ($in)  $in.addEventListener('click',  () => applyScale(loadScale() + 0.1));
+  // duplo clique em qualquer um = volta pro tamanho normal
+  for (const b of [$out, $in]) {
+    if (b) b.addEventListener('dblclick', () => applyScale(1));
+  }
 }
 
 function loadTheme() {

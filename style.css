@@ -1091,8 +1091,13 @@ body {
 
 /* === stats removidos do topbar (substituídos pelo relógio grande) === */
 .stat-overdue.has-count { animation: pulse-overdue 1.4s ease-in-out infinite; }
+/* Escala pessoal (A− / A+): aumenta cards E letras juntos; o layout
+   refaz as contas sozinho (recalcLayout lê o tamanho já escalado). */
+.board, .sidebar-inner { zoom: var(--ui-scale, 1); }
+
 .btn-refresh,
-.btn-theme {
+.btn-theme,
+.btn-zoom {
   flex: 1;
   height: 32px;
   border-radius: 4px;
@@ -1124,6 +1129,14 @@ body {
 .btn-theme:hover {
   background: var(--bg-input-focus);
 }
+.btn-zoom {
+  background: transparent;
+  color: var(--white);
+  border: 1px solid var(--border-soft);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+.btn-zoom:hover { background: var(--bg-input-focus); color: var(--gold); }
 
 /* ==================================================================
    RESPONSIVE — telas muito wide
