@@ -65,6 +65,7 @@ const LS_FINISHED_MAP_KEY = 'painel-galpao-finished-map-v1'; // id->{state,at} (
 const LS_NOTES_KEY    = 'painel-galpao-notes-v1';
 const LS_THEME_KEY    = 'painel-galpao-theme-v1';
 const LS_SCALE_KEY    = 'painel-galpao-scale-v1';   // escala pessoal (A- / A+)
+const LS_CSV_CACHE_KEY = 'painel-galpao-csv-cache-v1'; // última carga boa (abertura instantânea)
 const LS_DATE_OVR_KEY = 'painel-galpao-date-overrides-v1';
 const LS_ORDER_KEY    = 'painel-galpao-order-v1';
 const LS_SIDE_ORDER_KEY = 'painel-galpao-sidebar-order-v1';
@@ -309,6 +310,26 @@ async function _loadData(silent = false) {
     return;
   }
 
+  // guarda a última carga boa: a PRÓXIMA abertura desenha na hora com ela
+  try { localStorage.setItem(LS_CSV_CACHE_KEY, JSON.stringify(texts)); } catch (_) {}
+
+  processTexts(texts, silent);
+}
+
+/* Abertura INSTANTÂNEA: desenha já com a última carga guardada no aparelho,
+ * enquanto a busca de verdade acontece por trás (que redesenha se mudou). */
+function renderFromCache() {
+  try {
+    const raw = localStorage.getItem(LS_CSV_CACHE_KEY);
+    if (!raw) return false;
+    const texts = JSON.parse(raw);
+    if (!Array.isArray(texts) || !texts.length) return false;
+    processTexts(texts, true);
+    return true;
+  } catch (_) { return false; }
+}
+
+function processTexts(texts, silent) {
   // detecta mudança usando hash robusto (djb2) — pega edição no meio do CSV
   const sig = texts.map(t => quickHash(t)).join('|');
   if (silent && sig === lastSignature) {
@@ -1706,9 +1727,11 @@ function init() {
   // com o que tem e o estado corrige sozinho quando chegar (applyRemoteState
   // redesenha). Antes era em fila e a tela ficava preta esperando.
   const estadoCedo = pullRemoteState();
-  const noMaximo = new Promise((r) => setTimeout(r, 3500));
+  // desenha JÁ com a última carga guardada (abre na hora); a rede corrige atrás
+  const tinhaCache = renderFromCache();
+  const noMaximo = new Promise((r) => setTimeout(r, tinhaCache ? 1200 : 3500));
   Promise.race([estadoCedo, noMaximo])
-    .then(() => loadData())
+    .then(() => loadData(tinhaCache))
     .then(() => { startAllRefreshers(); });
 }
 
