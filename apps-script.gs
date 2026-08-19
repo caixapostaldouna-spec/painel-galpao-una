@@ -48,8 +48,50 @@ function parseAbaName(name) {
   return { mes, ano };
 }
 
+// Primeiro mes que o BANK (conciliacao financeira do UNA CHAT) enxerga.
+// Antes disso ja foi tudo conferido a mao — pedido do dono.
+const BANK_DESDE = 2025 * 12 + 9; // OUT/2025
+
 function doGet(e) {
   const action = (e && e.parameter && e.parameter.action) || '';
+
+  // ---- endpoint bank: linhas CRUAS + a NOTA da celula do projeto -----
+  // Diferente do CSV do painel: traz TODAS as linhas (inclusive as ja
+  // DESPACHADAS, que continuam a receber pagamento) e nao corta no Torun.
+  // Quem interpreta os valores e o /api/bank/sync do chat.
+  if (action === 'bank') {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const abas = [];
+    for (const sheet of ss.getSheets()) {
+      const parsed = parseAbaName(sheet.getName());
+      if (!parsed) continue;
+      if (parsed.ano * 12 + parsed.mes < BANK_DESDE) continue;
+      const lastRow = sheet.getLastRow();
+      const lastCol = Math.max(1, sheet.getLastColumn());
+      if (lastRow < 2) continue;
+      const rng = sheet.getRange(1, 1, lastRow, lastCol);
+      const data = rng.getValues();
+      const notas = rng.getNotes();
+      const linhas = [];
+      for (let i = 0; i < data.length; i++) {
+        const projeto = String(data[i][1] || '').trim();
+        if (!projeto || /^PROJETO$/i.test(projeto) || /toru[nm]/i.test(projeto)) continue;
+        const v = data[i].map(function (cell) {
+          if (cell instanceof Date) {
+            const mm = cell.getMonth() + 1;
+            const dd = cell.getDate();
+            return cell.getFullYear() + '-' + (mm < 10 ? '0' + mm : mm) +
+              '-' + (dd < 10 ? '0' + dd : dd);
+          }
+          return cell == null ? '' : String(cell);
+        });
+        linhas.push({ v: v, nota: String(notas[i][1] || '') });
+      }
+      const m = parsed.mes + 1;
+      abas.push({ mes: parsed.ano + '-' + (m < 10 ? '0' + m : m), linhas: linhas });
+    }
+    return jsonOutput({ abas: abas, em: Date.now() });
+  }
 
   // ---- endpoint state: retorna JSON do estado compartilhado ----------
   if (action === 'state') {
