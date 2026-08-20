@@ -22,8 +22,13 @@
 // "STATUS - Projetos" (15Zqvldf2gIy8nqtNInOTHnQlzsIFLEFuxbkhLTkppVs).
 // Consolida automaticamente todas as abas com nome de mês
 // (MAIO 2026, JUN 2026, JUL 2026, etc.) com varredura completa.
+// A segunda fonte é o CHAT DO UNA: os pedidos que a equipe move pra
+// PRODUÇÃO lá aparecem aqui sozinhos, no mesmo formato de coluna da
+// planilha (pedido do dono, 20/08). É o caminho pra planilha se aposentar:
+// enquanto isso, as duas fontes convivem e o painel junta as duas.
 const SHEET_CSV_URLS = [
   "https://script.google.com/macros/s/AKfycbyNLmiFQkfCmUqWAdc5dZ48JNgAQn58nth0myjAGcW5ASy5yLwFRENueFkvxvmqlf-ZRw/exec",
+  "https://chat-galpaouna.vercel.app/api/producao/pedidos",
 ];
 
 const FALLBACK_CSV = "dados.csv";
@@ -293,13 +298,20 @@ async function _loadData(silent = false) {
   let texts = [];
   try {
     if (usingSheets) {
-      const results = await Promise.all(urls.map(async (url) => {
+      // Uma fonte fora do ar NÃO pode apagar o painel: pega o que respondeu
+      // e segue. Só é falha de verdade quando TODAS caem (antes, com
+      // Promise.all, um tropeço de qualquer fonte esvaziava a TV).
+      const results = await Promise.allSettled(urls.map(async (url) => {
         const cb = `${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
         const res = await fetch(url + cb, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status} em ${url}`);
         return res.text();
       }));
-      texts = results;
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') console.warn('[Painel] fonte fora do ar:', urls[i], r.reason);
+      });
+      texts = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+      if (!texts.length) throw new Error('nenhuma fonte respondeu');
     } else {
       const res = await fetch(`${FALLBACK_CSV}?_t=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
