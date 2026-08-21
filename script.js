@@ -282,6 +282,26 @@ function finishKey(projeto, contato, dateCliente) {
 
 /* ---------- 6. LOAD DATA ------------------------------------------------ */
 
+/* Texto da última resposta BOA de cada fonte, guardado por índice.
+ * Serve pra duas coisas: uma fonte que tropeça mantém os cards que já
+ * estavam na tela (antes ela sumia da carga), e dá pra atualizar UMA fonte
+ * sozinha — é o que faz a fonte do chat andar mais rápido que a planilha. */
+let TEXTOS_POR_FONTE = [];
+const fontesVivas = () => TEXTOS_POR_FONTE.filter(t => typeof t === 'string' && t);
+
+function urlsAtivas() {
+  return (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS : [])
+    .map(u => (u || '').trim())
+    .filter(Boolean);
+}
+
+async function baixarFonte(url) {
+  const cb = `${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+  const res = await fetch(url + cb, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`HTTP ${res.status} em ${url}`);
+  return res.text();
+}
+
 let _loadNoAr = false;
 async function loadData(silent = false) {
   if (_loadNoAr) return;          // ainda tem uma carga no ar — não empilha
@@ -289,9 +309,7 @@ async function loadData(silent = false) {
   try { return await _loadData(silent); } finally { _loadNoAr = false; }
 }
 async function _loadData(silent = false) {
-  const urls = (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS : [])
-    .map(u => (u || '').trim())
-    .filter(Boolean);
+  const urls = urlsAtivas();
   const usingSheets = urls.length > 0;
   if (!silent) showToast(`CARREGANDO ${usingSheets ? `${urls.length} ABA(S) DO SHEETS` : "DADOS.CSV"}...`);
 
@@ -301,16 +319,12 @@ async function _loadData(silent = false) {
       // Uma fonte fora do ar NÃO pode apagar o painel: pega o que respondeu
       // e segue. Só é falha de verdade quando TODAS caem (antes, com
       // Promise.all, um tropeço de qualquer fonte esvaziava a TV).
-      const results = await Promise.allSettled(urls.map(async (url) => {
-        const cb = `${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
-        const res = await fetch(url + cb, { cache: 'no-store' });
-        if (!res.ok) throw new Error(`HTTP ${res.status} em ${url}`);
-        return res.text();
-      }));
+      const results = await Promise.allSettled(urls.map(baixarFonte));
       results.forEach((r, i) => {
-        if (r.status === 'rejected') console.warn('[Painel] fonte fora do ar:', urls[i], r.reason);
+        if (r.status === 'fulfilled') TEXTOS_POR_FONTE[i] = r.value;
+        else console.warn('[Painel] fonte fora do ar:', urls[i], r.reason);
       });
-      texts = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+      texts = fontesVivas();
       if (!texts.length) throw new Error('nenhuma fonte respondeu');
     } else {
       const res = await fetch(`${FALLBACK_CSV}?_t=${Date.now()}`, { cache: 'no-store' });
@@ -327,6 +341,34 @@ async function _loadData(silent = false) {
   try { localStorage.setItem(LS_CSV_CACHE_KEY, JSON.stringify(texts)); } catch (_) {}
 
   processTexts(texts, silent);
+}
+
+/* ---------- 6b. FONTE RÁPIDA (os pedidos do UNA CHAT) -------------------
+ * Mover um pedido pra PRODUÇÃO no chat tem que acender o card aqui quase na
+ * hora (pedido do dono, 20/08). Essa fonte é uma consulta leve nossa, então
+ * ela é conferida a cada poucos segundos sozinha — a planilha, que é a
+ * chamada pesada, continua no ritmo dela. */
+const FONTE_RAPIDA_MS = 4000;
+const EH_FONTE_RAPIDA = /\/api\/producao\/pedidos/;
+
+let _rapidaNoAr = false;
+async function refrescarFonteRapida() {
+  if (_rapidaNoAr || !fontesVivas().length) return;   // espera a 1ª carga cheia
+  const urls = urlsAtivas();
+  const i = urls.findIndex(u => EH_FONTE_RAPIDA.test(u));
+  if (i < 0) return;
+  _rapidaNoAr = true;
+  try {
+    const txt = await baixarFonte(urls[i]);
+    if (txt !== TEXTOS_POR_FONTE[i]) {
+      TEXTOS_POR_FONTE[i] = txt;
+      processTexts(fontesVivas(), true);   // só redesenha se o hash mudou
+    }
+  } catch (err) {
+    console.warn('[Painel] fonte rápida fora do ar:', err);
+  } finally {
+    _rapidaNoAr = false;
+  }
 }
 
 /* Abertura INSTANTÂNEA: desenha já com a última carga guardada no aparelho,
@@ -1673,6 +1715,8 @@ function startAllRefreshers() {
   _refreshersStarted = true;
   // 30s: check rapido
   setInterval(async () => { await loadData(true); }, QUICK_REFRESH_MS);
+  // 4s: só os pedidos do chat (consulta leve) — produção entra quase na hora
+  setInterval(refrescarFonteRapida, FONTE_RAPIDA_MS);
   // 5min: hard refresh (forca ignorar cache)
   setInterval(async () => {
     lastSignature = '';
