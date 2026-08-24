@@ -289,6 +289,18 @@ function finishKey(projeto, contato, dateCliente) {
 let TEXTOS_POR_FONTE = [];
 const fontesVivas = () => TEXTOS_POR_FONTE.filter(t => typeof t === 'string' && t);
 
+/* Toda fonte configurada ja deu pelo menos UMA resposta boa?
+ * E' o que diz se o quadro que temos na tela e' o quadro inteiro. Enquanto
+ * for "nao", nada de estado posicional sobe pro servidor. */
+function todasAsFontesResponderam() {
+  const n = urlsAtivas().length;
+  if (!n) return true;                     // modo dados.csv: fonte unica
+  for (let i = 0; i < n; i++) {
+    if (typeof TEXTOS_POR_FONTE[i] !== 'string' || !TEXTOS_POR_FONTE[i]) return false;
+  }
+  return true;
+}
+
 function urlsAtivas() {
   return (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS : [])
     .map(u => (u || '').trim())
@@ -406,10 +418,25 @@ function processTexts(texts, silent) {
   // migra dados gravados com o id posicional antigo pro id estável novo
   migrateLegacyKeys(records);
 
-  // preserva o LOCATIONS dos cards que ainda existem
+  // Preserva o LOCATIONS dos cards que ainda existem — E TAMBEM o dos que
+  // NAO vieram nesta carga.
+  //
+  // Estrago real (24/08): uma fonte fora do ar faz a carga vir parcial, e o
+  // LOCATIONS.clear() apagava a posicao de todo card que faltou. Como o
+  // pushRemoteState manda `locations` inteiro e o doPost gravava por cima,
+  // uma queda de minutos de uma fonte apagava a organizacao da equipe NO
+  // SERVIDOR. Foi assim que o painel da Blue "ficou todo perdido".
+  //
+  // Agora a posicao de quem faltou fica guardada e volta sozinha quando a
+  // fonte voltar. Quem sai de verdade (despacho) segue saindo pelo
+  // LOCATIONS.delete(id) de sempre.
   const prevLocs = restoreLocations(); // ou usa LOCATIONS atual
+  const vieramAgora = new Set(records.map(r => r.id));
   RECORDS.clear();
   LOCATIONS.clear();
+  for (const [id, loc] of prevLocs) {
+    if (!vieramAgora.has(id)) LOCATIONS.set(id, loc === 'sidebar' ? 'sidebar' : 'board');
+  }
   for (const r of records) {
     RECORDS.set(r.id, r);
     const loc = prevLocs.get(r.id) || prevLocs.get(r.legacyId);
@@ -1888,7 +1915,11 @@ async function pushRemoteState() {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
-        locations:      Object.fromEntries(LOCATIONS),
+        // `locations` so sobe quando TODAS as fontes responderam. Com uma
+        // fonte muda, o que temos e um retrato incompleto do quadro — e o
+        // servidor grava esse campo por cima. Omitir e' mais seguro do que
+        // mandar meia verdade: o setProp_ do Apps Script ignora undefined.
+        locations:      todasAsFontesResponderam() ? Object.fromEntries(LOCATIONS) : undefined,
         finished:       finishedMapForSync(),
         notes:          notesForSync(),
         dateOverrides:  Object.fromEntries(DATE_OVERRIDES),

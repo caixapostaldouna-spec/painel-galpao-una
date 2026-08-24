@@ -184,10 +184,21 @@ function doPost(e) {
 
     // campos simples (limitados pelo nr de cards ativos): grava direto, cada um
     // no seu try pra um erro nao derrubar os outros nem o updatedAt.
-    setProp_('state_locations',     body.locations,     result, 'locations');
-    setProp_('state_dateOverrides', body.dateOverrides, result, 'dateOverrides');
-    setProp_('state_manualOrder',   body.manualOrder,   result, 'manualOrder');
-    setProp_('state_sidebarOrder',  body.sidebarOrder,  result, 'sidebarOrder');
+    // MERGE, nao overwrite (conserto de 24/08).
+    //
+    // Antes era setProp_ direto: o que o aparelho mandava virava a verdade
+    // inteira. So que o aparelho manda o quadro que ELE conhece — e com uma
+    // fonte de dados fora do ar ele conhece menos cards do que existem. Uma
+    // queda de minutos apagava a organizacao da equipe no servidor, e foi
+    // isso que deixou o painel da Blue "todo perdido".
+    //
+    // Com merge, o que o remetente nao mencionou continua valendo. Quem
+    // mencionou manda na chave (posicao nova ganha da antiga), que e' o
+    // comportamento certo pra dois aparelhos mexendo no mesmo quadro.
+    mergeProp_('state_locations',     body.locations,     result, 'locations');
+    mergeProp_('state_dateOverrides', body.dateOverrides, result, 'dateOverrides');
+    mergeProp_('state_manualOrder',   body.manualOrder,   result, 'manualOrder');
+    mergeProp_('state_sidebarOrder',  body.sidebarOrder,  result, 'sidebarOrder');
 
     // NOTAS: MERGE por timestamp (igual finished). Cada nota é {html, at};
     // html vazio = tombstone de deleção — apagar propaga e NUNCA ressuscita.
@@ -222,6 +233,46 @@ function doPost(e) {
 }
 
 // grava um campo simples; erro de um nao derruba os outros
+/* Grava um mapa id->valor MESCLANDO com o que ja esta no servidor.
+ *
+ * O que chega manda na chave; o que nao veio no pacote continua como estava.
+ * Assim um aparelho com visao parcial do quadro nunca apaga o que os outros
+ * organizaram.
+ *
+ * Poda pra caber no limite do PropertiesService (~9KB por valor): estes mapas
+ * nao tem timestamp, entao a regra e' "o que veio AGORA entra primeiro" — o
+ * card que o remetente acabou de tocar e' o que mais importa preservar. O que
+ * sobrar de antigo entra ate encher.
+ */
+function mergeProp_(key, value, result, label) {
+  if (value === undefined || value === null) return;
+  try {
+    var atual = {};
+    var raw = PROPS.getProperty(key);
+    if (raw) { try { atual = JSON.parse(raw) || {}; } catch (e0) { atual = {}; } }
+
+    // A poda vale pros DOIS lados. O pacote que chega tambem pode passar do
+    // limite sozinho (400 cards dao ~25KB), e ai o setProperty lancaria e o
+    // campo nao seria gravado de jeito nenhum — falha total em vez de perda
+    // parcial. Melhor caber e perder a posicao dos mais antigos.
+    var out = {};
+    var k;
+    var cheio = false;
+    for (k in value) {
+      if (!value.hasOwnProperty(k)) continue;
+      out[k] = value[k];
+      if (JSON.stringify(out).length > 8500) { delete out[k]; cheio = true; break; }
+    }
+    for (k in atual) {
+      if (cheio) break;
+      if (!atual.hasOwnProperty(k) || out.hasOwnProperty(k)) continue;
+      out[k] = atual[k];
+      if (JSON.stringify(out).length > 8500) { delete out[k]; break; }
+    }
+    PROPS.setProperty(key, JSON.stringify(out));
+  } catch (e) { result[label + 'Error'] = String(e); }
+}
+
 function setProp_(key, value, result, label) {
   if (value === undefined || value === null) return;
   try { PROPS.setProperty(key, JSON.stringify(value)); }
