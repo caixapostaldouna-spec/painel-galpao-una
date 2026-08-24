@@ -102,7 +102,8 @@ function doGet(e) {
       dateOverrides: JSON.parse(PROPS.getProperty('state_dateOverrides') || '{}'),
       manualOrder:   JSON.parse(PROPS.getProperty('state_manualOrder')   || '{}'),
       sidebarOrder:  JSON.parse(PROPS.getProperty('state_sidebarOrder')  || '{}'),
-      updatedAt:     Number(PROPS.getProperty('state_updatedAt')         || 0)
+      updatedAt:     Number(PROPS.getProperty('state_updatedAt')         || 0),
+      versao:        VERSAO_APPS_SCRIPT
     });
   }
 
@@ -161,6 +162,16 @@ function doGet(e) {
   return ContentService.createTextOutput(csv)
     .setMimeType(ContentService.MimeType.PLAIN_TEXT);
 }
+
+/* VERSAO DESTE ARQUIVO, devolvida pelo ?action=state.
+ *
+ * Existe porque mesclar o PR NAO publica o Apps Script: so o dono reimplanta
+ * (planilha -> Extensoes -> Apps Script -> Implantar -> Nova versao). Ja
+ * aconteceu de o endpoint estar rodando uma versao velha sem `action=bank` e
+ * ninguem ter como saber. Com isto, da pra CONFERIR o que esta no ar em vez
+ * de supor: sobe este numero sempre que mexer neste arquivo.
+ */
+const VERSAO_APPS_SCRIPT = '2026-08-24-002';
 
 function doPost(e) {
   // serializa o read-modify-write do "finished" pra dois dispositivos nao
