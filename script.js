@@ -31,6 +31,23 @@ const SHEET_CSV_URLS = [
   "https://chat-galpaouna.vercel.app/api/producao/pedidos",
 ];
 
+/**
+ * O TÚNEL DO QUADRO — posições, despachos, notas e datas (27/08).
+ *
+ * Antes isso morava no PropertiesService do Apps Script, no MESMO endereço do
+ * CSV. Esse endereço passou a devolver 404 (é o que acontece quando alguém
+ * reimplanta como "Nova implantação" em vez de "Nova versão"), e os dois
+ * sentidos do túnel caíram calados: o que este aparelho fazia não subia, e o
+ * que os outros faziam não descia. Cada aparelho virou uma ilha — tudo
+ * funcionando na tela de quem mexeu e nada saindo dali.
+ *
+ * Agora o estado mora no banco do chat, com uma linha por card. Duas coisas
+ * mudam por causa disso, e as duas são melhores:
+ *   · gravação parcial não apaga mais nada (o servidor mescla por chave), e
+ *   · não há mais teto de ~8,5KB podando a posição dos cards antigos.
+ */
+const ESTADO_URL = "https://chat-galpaouna.vercel.app/api/producao/estado";
+
 const FALLBACK_CSV = "dados.csv";
 
 // Auto-refresh do CSV (ms). 0 desliga. 30s = bom equilíbrio.
@@ -288,18 +305,6 @@ function finishKey(projeto, contato, dateCliente) {
  * sozinha — é o que faz a fonte do chat andar mais rápido que a planilha. */
 let TEXTOS_POR_FONTE = [];
 const fontesVivas = () => TEXTOS_POR_FONTE.filter(t => typeof t === 'string' && t);
-
-/* Toda fonte configurada ja deu pelo menos UMA resposta boa?
- * E' o que diz se o quadro que temos na tela e' o quadro inteiro. Enquanto
- * for "nao", nada de estado posicional sobe pro servidor. */
-function todasAsFontesResponderam() {
-  const n = urlsAtivas().length;
-  if (!n) return true;                     // modo dados.csv: fonte unica
-  for (let i = 0; i < n; i++) {
-    if (typeof TEXTOS_POR_FONTE[i] !== 'string' || !TEXTOS_POR_FONTE[i]) return false;
-  }
-  return true;
-}
 
 function urlsAtivas() {
   return (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS : [])
@@ -1876,6 +1881,7 @@ const LS_SYNC_KEY = 'painel-galpao-sync-v1';
 let remoteStateUpdatedAt = 0;
 let pushTimer = null;
 let pendingPush = false;   // true entre uma ação local e o push chegar no servidor
+let ofereciMeuEstado = false;  // este aparelho já se ofereceu pro túnel vazio
 
 function broadcastSync(kind) {
   try { localStorage.setItem(LS_SYNC_KEY, `${kind}|${Date.now()}|${Math.random()}`); } catch(_){}
@@ -1908,18 +1914,24 @@ function notesForSync() {
 }
 
 async function pushRemoteState() {
-  const url = (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS[0] : '') || '';
-  if (!url.includes('script.google.com')) { pendingPush = false; return; }
   try {
-    await fetch(url, {
+    await fetch(ESTADO_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
-        // `locations` so sobe quando TODAS as fontes responderam. Com uma
-        // fonte muda, o que temos e um retrato incompleto do quadro — e o
-        // servidor grava esse campo por cima. Omitir e' mais seguro do que
-        // mandar meia verdade: o setProp_ do Apps Script ignora undefined.
-        locations:      todasAsFontesResponderam() ? Object.fromEntries(LOCATIONS) : undefined,
+        /* `locations` volta a subir SEMPRE.
+         *
+         * A trava `todasAsFontesResponderam()` existia porque o servidor
+         * antigo gravava o mapa INTEIRO por cima: com uma fonte muda, este
+         * aparelho tem um retrato parcial do quadro e apagaria a organizacao
+         * dos outros. Era proteger contra o proprio jeito de gravar.
+         *
+         * O servidor novo mescla POR CHAVE — quem conhece 16 cards atualiza 16
+         * linhas e nao encosta no resto. Retrato parcial deixou de ser
+         * perigoso, e a trava so atrapalhava: com a fonte da planilha fora do
+         * ar, ela segurava as posicoes pra sempre e nada da Blue chegava nos
+         * outros aparelhos. */
+        locations:      Object.fromEntries(LOCATIONS),
         finished:       finishedMapForSync(),
         notes:          notesForSync(),
         dateOverrides:  Object.fromEntries(DATE_OVERRIDES),
@@ -1944,13 +1956,29 @@ async function pullRemoteState() {
   // se há mudança local ainda não enviada, NÃO deixa o pull sobrescrever
   // (evita reverter um drag/despacho recente "do nada"). Pega no próximo ciclo.
   if (pendingPush) return;
-  const url = (Array.isArray(SHEET_CSV_URLS) ? SHEET_CSV_URLS[0] : '') || '';
-  if (!url.includes('script.google.com')) return;
   try {
-    const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'action=state&_t=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch(ESTADO_URL + '?_t=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) return;
     const data = await res.json();
     if (!data || typeof data.updatedAt !== 'number') return;
+
+    /* O TUNEL NASCE VAZIO — e quem organizou o quadro nao pode perder nada.
+     *
+     * O estado antigo morreu junto com o endereco do Apps Script, entao a
+     * primeira leitura vem sem nada (`updatedAt: 0`). O que a Blue organizou
+     * esta vivo no aparelho DELA, e e' isso que tem que virar a verdade: em
+     * vez de esperar ela mexer em algum card pra o primeiro envio acontecer,
+     * o aparelho que TEM organizacao local se oferece na hora.
+     *
+     * So uma vez por sessao (`ofereciMeuEstado`), e so quem tem o que mandar:
+     * um aparelho recem-aberto, sem nada guardado, nao apaga o dos outros. */
+    if (data.updatedAt === 0 && !ofereciMeuEstado
+        && (LOCATIONS.size || DATE_OVERRIDES.size || loadFinishedMap().size)) {
+      ofereciMeuEstado = true;
+      schedulePushRemote();
+      return;
+    }
+
     if (data.updatedAt <= remoteStateUpdatedAt) return;
     remoteStateUpdatedAt = data.updatedAt;
     applyRemoteState(data);
