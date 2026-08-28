@@ -1,80 +1,62 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="build-version" content="2026-08-27-030">
-  <title>PAINEL DE PRODUÇÃO — GALPÃO UNA</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Caveat:wght@500;700&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2026-08-27-030">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Produção — Galpão Una</title>
+
+<!--
+  O PAINEL MUDOU DE CASA (28/08/2026).
+
+  Ele agora mora dentro do chat, em https://chat-galpaouna.vercel.app/painel —
+  no mesmo lugar do resto do sistema. O motivo foi concreto: a ponte entre o
+  painel e o chat tem dois lados, e mudar os dois exigia dois repositórios e
+  dois PRs. Um deles ficou pra trás numa mesclagem e a TV passou dias sem
+  sincronizar entre os aparelhos.
+
+  Esta página existe pra TV se mudar SOZINHA. Ninguém precisa digitar endereço
+  novo: quem abrir o link antigo — a TV do galpão, um favorito no celular, o
+  atalho na área de trabalho — cai direto na casa nova.
+
+  O redirecionamento é feito de três jeitos, de propósito, porque a TV é um
+  aparelho velho e não dá pra saber qual deles ela obedece:
+    1. o <meta refresh>, que funciona sem JavaScript nenhum;
+    2. o <script>, que é instantâneo e substitui o histórico (assim o botão
+       "voltar" não fica preso num pingue-pongue entre os dois endereços);
+    3. o link visível, se os dois primeiros falharem.
+-->
+<meta http-equiv="refresh" content="0; url=https://chat-galpaouna.vercel.app/painel">
+<link rel="canonical" href="https://chat-galpaouna.vercel.app/painel">
+
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px;
+    background: #0a0a0a; color: #f3efe5;
+    font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+    text-align: center; padding: 24px;
+  }
+  h1 { font-size: 1.4rem; margin: 0; letter-spacing: .02em; text-transform: uppercase; }
+  p { margin: 0; color: #9b9384; max-width: 40ch; line-height: 1.6; }
+  a {
+    color: #0a0a0a; background: #c89a3a; text-decoration: none;
+    padding: 12px 22px; border-radius: 6px; font-weight: 700;
+  }
+  a:focus-visible { outline: 2px solid #f3efe5; outline-offset: 3px; }
+</style>
 </head>
 <body>
+  <h1>O painel mudou de casa</h1>
+  <p>Ele agora abre dentro do sistema, junto com o resto. Se esta tela não
+     passar sozinha em alguns segundos, toque no botão.</p>
+  <a href="https://chat-galpaouna.vercel.app/painel">Abrir o painel</a>
 
-  <main class="app">
-
-    <!-- ===================== ÁREA CENTRAL =========================== -->
-    <section class="board" id="board" aria-label="Cards em produção">
-      <!-- cards completos injetados aqui via JS -->
-    </section>
-
-    <!-- ===================== COLUNA LATERAL ========================= -->
-    <aside class="sidebar" id="sidebar" aria-label="Coluna lateral">
-      <div class="sidebar-clock" id="refresh-stamp">--:--</div>
-      <div class="sidebar-inner" id="sidebar-inner">
-        <!-- cards reduzidos injetados aqui via JS -->
-        <div class="sidebar-empty" id="sidebar-empty">AGUARDANDO RETIRADA</div>
-      </div>
-      <div class="sidebar-footer">
-        <button class="btn-zoom"    id="btn-zoom-out" title="Diminuir letras e cards">A−</button>
-        <button class="btn-zoom"    id="btn-zoom-in"  title="Aumentar letras e cards (duplo clique volta ao normal)">A+</button>
-        <button class="btn-refresh" id="btn-refresh" title="Atualizar agora">↻</button>
-        <button class="btn-theme"   id="btn-theme"   title="Alternar tema dia / noite">☾</button>
-      </div>
-    </aside>
-
-    <!-- (painel detalhe removido a pedido do user) -->
-
-    <!-- ===================== TOAST de status ======================== -->
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-    <!-- ===================== OVERLAY BORA ALMOÇAR ==================== -->
-    <div class="lunch-overlay" id="lunch-overlay" hidden>
-      <div class="lunch-text">BORA ALMOÇAR<br>KARAIII !!!!</div>
-    </div>
-
-    <!-- ===================== POPOVER DESPACHADOS RECENTES ============ -->
-    <div class="dispatched-modal" id="dispatched-modal" hidden>
-      <div class="dispatched-frame">
-        <div class="dispatched-header">
-          <span class="dispatched-title">DESPACHADOS · ÚLTIMOS 15</span>
-          <button class="dispatched-close" id="dispatched-close" title="Fechar">×</button>
-        </div>
-        <div class="dispatched-list" id="dispatched-list"></div>
-        <div class="dispatched-empty" id="dispatched-empty" hidden>
-          Nenhum trabalho despachado ainda
-        </div>
-      </div>
-    </div>
-
-    <!-- ===================== MODAL NOTAS DO MOTORISTA =============== -->
-    <div class="motorista-modal" id="motorista-modal" hidden>
-      <div class="motorista-frame">
-        <div class="motorista-header">
-          <span class="motorista-title" id="motorista-title">NOTAS DO MOTORISTA</span>
-          <button class="motorista-close" id="motorista-close" title="Fechar">×</button>
-        </div>
-        <div class="motorista-content"
-             id="motorista-content"
-             contenteditable="true"
-             spellcheck="false"
-             data-placeholder="COLE A INFORMAÇÃO AQUI · CTRL+V"></div>
-      </div>
-    </div>
-
-  </main>
-
-  <script src="script.js?v=2026-08-27-030"></script>
+  <script>
+    // replace, não href: assim o "voltar" não devolve pra esta página e
+    // ninguém fica preso num pingue-pongue entre os dois endereços.
+    location.replace('https://chat-galpaouna.vercel.app/painel');
+  </script>
 </body>
 </html>

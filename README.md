@@ -1,38 +1,30 @@
-# Painel de Produção — Galpão Una
+# painel-galpao-una — mudou de casa
 
-Painel industrial dos trabalhos em produção. Lê dados direto do Google Sheets
-(uma aba por mês) e mostra cards arrastáveis: **central** = em produção,
-**coluna direita** = aguardando retirada.
+O painel de produção **não mora mais aqui**. Desde 28/08/2026 ele vive dentro
+do chat, em [`public/painel`](https://github.com/caixapostaldouna-spec/una-chat/tree/master/public/painel)
+do repositório `una-chat`, e abre em:
 
-## Como funciona
+**https://chat-galpaouna.vercel.app/painel**
 
-- Cards aparecem automaticamente conforme você adiciona linhas no Sheets.
-- Basta colocar o **nome do projeto** (coluna B) — todo o resto é opcional.
-- Filtro automático: só mostra trabalhos do **mês corrente em diante**.
-- Filtro **TORUN**: cada aba começa a listar a partir da primeira linha
-  cujo projeto seja "Torun" ou "Torum".
-- **Arrastar** card pra coluna direita = trabalho pronto aguardando retirada.
-- **Duplo clique** no card da coluna direita = trabalho DESPACHADO: o painel
-  grava "DESPACHADO" na **coluna J** da linha correspondente na planilha e o
-  servidor passa a filtrar a linha na origem (nunca mais volta). Restaurar
-  pelo popover de despachados limpa a marca.
-- **Clique** no card da coluna direita abre as notas do motorista (Ctrl+V de
-  texto ou imagem). Apagar nota propaga a deleção pros outros dispositivos.
+## Por que mudou
 
-> ⚠️ Não usar a coluna J das abas mensais pra outra coisa — ela é reservada
-> pra marca DESPACHADO do painel.
+A ponte entre o painel e o chat tem dois lados — o painel lê os pedidos em
+produção do chat e guarda nele o estado compartilhado do quadro. Mudar os dois
+exigia dois repositórios e dois PRs, e um deles ficou pra trás numa mesclagem:
+a TV passou dias sem sincronizar entre os aparelhos, e ninguém percebeu.
 
-## Adicionar novo mês
+Junto veio o conserto do que estava quebrado:
 
-1. No Google Sheets: `Arquivo > Compartilhar > Publicar na web` → aba do mês
-   novo → formato CSV → publicar.
-2. Copiar a URL gerada (termina em `output=csv`).
-3. Adicionar a URL no array `SHEET_CSV_URLS` no início do `script.js`.
-4. Commit + push. GitHub Pages atualiza em ~30s.
+- o estado compartilhado saiu do Apps Script (cujo endereço passou a devolver
+  404) e foi pro banco do chat, com uma linha por card;
+- a planilha "STATUS - Projetos" deixou de alimentar a TV. O trabalho nasce na
+  aprovação, vira pedido e, quando entra em produção, aparece no painel.
 
-## Arquivos
+## O que sobrou aqui
 
-- `index.html` — estrutura
-- `style.css` — visual industrial (preto + amarelo ouro)
-- `script.js` — toda a lógica (parser CSV, drag-drop, filtros, persistência)
-- `dados.csv` — fallback local (usado se o array de URLs estiver vazio)
+Só esta página, que redireciona quem abrir o endereço antigo — a TV do galpão,
+um favorito, um atalho. Assim ninguém precisa digitar endereço novo.
+
+O `apps-script.gs` foi para
+[`docs/painel`](https://github.com/caixapostaldouna-spec/una-chat/tree/master/docs/painel)
+no repositório novo, como histórico.
